@@ -1,0 +1,55 @@
+package com.vss_market;
+
+import com.mojang.logging.LogUtils;
+import com.vss_market.data.MarketSerializers;
+import net.minecraft.client.Minecraft;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.loading.FMLEnvironment;
+import net.neoforged.fml.loading.FMLLoader;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import org.slf4j.Logger;
+
+@Mod(VSSMarket.MOD_ID)
+public class VSSMarket {
+    public static final String MOD_ID = "vss_market";
+    public static final Logger LOGGER = LogUtils.getLogger();
+
+    public VSSMarket(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
+        MarketSerializers.register();
+        modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
+        if (dist == Dist.CLIENT) {
+            modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        }
+    }
+
+    public static ResourceLocation id(String path) {
+        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+    }
+
+    public static String formattedMod(String path) {
+        return ("%s:" + path).formatted(MOD_ID);
+    }
+
+    public static boolean isPresentResource(ResourceLocation resourceLocation) {
+        return Minecraft.getInstance().getResourceManager().getResource(resourceLocation).isPresent();
+    }
+
+    public static boolean isClient() {
+        return FMLEnvironment.dist == Dist.CLIENT;
+    }
+
+    public static boolean isDevEnv() {
+        return !FMLLoader.isProduction();
+    }
+
+    public static boolean isModLoaded(String modId) {
+        return ModList.get().isLoaded(modId);
+    }
+}
