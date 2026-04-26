@@ -29,12 +29,14 @@ side = "BOTH"
 [[dependencies."${mod_id}"]]
 modId = "ldlib2"
 type = "required"
+versionRange = "[${ldlib2_version},)"
 ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
 modId = "viscript_shop"
 type = "required"
+versionRange = "[${viscriptshop_version},)"
 ordering = "AFTER"
 side = "BOTH"
 

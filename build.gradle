@@ -57,6 +57,14 @@ repositories {
     maven {
         url "https://cursemaven.com"
     }
+
+    maven {
+        url "https://maven.sighs.cc/repository/maven-public/"
+        metadataSources {
+            mavenPom()
+            artifact()
+        }
+    }
 }
 
 base {
@@ -146,7 +154,9 @@ dependencies {
     //ldlib2
     implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
     //viscript_shop
-    implementation "curse.maven:viscriptshop-1408178:7964749"
+    implementation("com:ViScriptShop-neoforge-1.21.1:${viscriptshop_version}") {
+        transitive = false
+    }
 
     // KubeJS
     implementation "dev.latvian.mods:rhino:${rhino_version}"
@@ -173,7 +183,9 @@ tasks.withType(ProcessResources).configureEach {
                              mod_license            : mod_license,
                              mod_version            : mod_version,
                              mod_authors            : mod_authors,
-                             mod_description        : mod_description]
+                             mod_description        : mod_description,
+                             ldlib2_version         : ldlib2_version,
+                             viscriptshop_version   : viscriptshop_version]
     inputs.properties replaceProperties
 
     filesMatching(['META-INF/neoforge.mods.toml']) {
