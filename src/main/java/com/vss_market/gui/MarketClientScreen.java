@@ -4,7 +4,6 @@ import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
@@ -33,6 +32,7 @@ import com.vss_market.data.MarketListing;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.data.PlayerShopData;
 import com.vss_market.network.c2s.C2SPayload;
+import com.vss_market.data.MarketScreenPayload;
 import dev.vfyjxf.taffy.style.AlignContent;
 import dev.vfyjxf.taffy.style.AlignItems;
 import dev.vfyjxf.taffy.style.FlexDirection;
@@ -41,9 +41,7 @@ import dev.vfyjxf.taffy.style.TaffyDisplay;
 import dev.vfyjxf.taffy.style.TrackSizingFunction;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
@@ -83,37 +81,23 @@ public class MarketClientScreen extends UIElement {
     private int uploadBundleSize = 1;
     private int uploadStock = 1;
 
-    private MarketClientScreen(CompoundTag payload) {
-        this.snapshot = new MarketSavedData();
-        HolderLookup.Provider provider = Minecraft.getInstance().level == null
-                ? Platform.getFrozenRegistry()
-                : Minecraft.getInstance().level.registryAccess();
-        this.snapshot.deserializeNBT(provider, payload.getCompound("market"));
-        this.viewerId = parseUuid(payload.getString("viewer")).orElse(new UUID(0L, 0L));
-        this.money = payload.getInt("money");
-        this.selectedShopId = normalizeSelectedShop(payload.getString("selectedShop"));
-        this.selectedListingId = payload.getString("selectedListing");
-        this.view = parseView(payload.getString("view"));
-        this.messageKey = payload.getString("message");
-        this.messageType = parseMessageType(payload.getString("messageType"));
-        if (payload.contains("uploadStack")) {
-            this.uploadStack = ItemStack.parseOptional(provider, payload.getCompound("uploadStack")).copyWithCount(1);
-        }
-        if (payload.contains("uploadPrice")) {
-            this.uploadPrice = Math.max(1, payload.getInt("uploadPrice"));
-        }
-        if (payload.contains("uploadBundleSize")) {
-            this.uploadBundleSize = Math.max(1, payload.getInt("uploadBundleSize"));
-        }
-        if (payload.contains("uploadStock")) {
-            this.uploadStock = Math.max(1, payload.getInt("uploadStock"));
-        } else if (payload.contains("uploadCount")) {
-            this.uploadStock = Math.max(1, payload.getInt("uploadCount"));
-        }
+    private MarketClientScreen(MarketScreenPayload payload) {
+        this.snapshot = payload.getMarket();
+        this.viewerId = payload.getViewer();
+        this.money = payload.getMoney();
+        this.selectedShopId = normalizeSelectedShop(payload.getSelectedShop());
+        this.selectedListingId = payload.getSelectedListing();
+        this.view = parseView(payload.getView());
+        this.messageKey = payload.getMessageKey();
+        this.messageType = payload.parsedMessageType();
+        this.uploadStack = payload.getUploadStack().isEmpty() ? ItemStack.EMPTY : payload.getUploadStack().copyWithCount(1);
+        this.uploadPrice = Math.max(1, payload.getUploadPrice());
+        this.uploadBundleSize = Math.max(1, payload.getUploadBundleSize());
+        this.uploadStock = Math.max(1, payload.getUploadStock());
         initRoot();
     }
 
-    public static void open(CompoundTag payload) {
+    public static void open(MarketScreenPayload payload) {
         Minecraft.getInstance().execute(() -> {
             var screen = new MarketClientScreen(payload);
             var modularUI = new ModularUI(UI.of(
