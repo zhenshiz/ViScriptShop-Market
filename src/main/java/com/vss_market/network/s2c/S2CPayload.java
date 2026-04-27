@@ -7,6 +7,7 @@ import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import com.vss_market.VSSMarket;
 import com.vss_market.data.MarketScreenPayload;
+import com.vss_market.data.MarketSerializers;
 import com.vss_market.network.MarketClientBridge;
 import com.vss_market.util.MarketResult;
 import com.vss_market.util.MarketServerUtil;
@@ -17,9 +18,15 @@ public class S2CPayload {
     public static final String MOD_ID = VSSMarket.MOD_ID + ":";
     public static final String OPEN_MARKET_SCREEN = MOD_ID + "open_market_screen_s2c";
 
+    static {
+        MarketSerializers.register();
+    }
+
     @RPCPacket(OPEN_MARKET_SCREEN)
     public static void openMarketScreen(RPCSender sender, MarketScreenPayload payload) {
-        MarketClientBridge.openMarket(payload);
+        if (sender.isServer()) {
+            MarketClientBridge.openMarket(payload);
+        }
     }
 
     public static void open(ServerPlayer player, String selectedShopId, MarketResult result) {
