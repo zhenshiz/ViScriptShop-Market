@@ -8,8 +8,7 @@ import com.vss_market.VSSMarket;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -24,13 +23,8 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
     private static final String DATA_NAME = VSSMarket.MOD_ID + "_market";
     private static final Factory<MarketSavedData> FACTORY = new Factory<>(MarketSavedData::new, MarketSavedData::load);
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, MarketSavedData> STREAM_CODEC;
-    public static final Codec<MarketSavedData> CODEC;
-
-    static {
-        CODEC = PersistedParser.createCodec(MarketSavedData::new);
-        STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC);
-    }
+    public static final Codec<MarketSavedData> CODEC = PersistedParser.createCodec(MarketSavedData::new);
+    public static final StreamCodec<ByteBuf, MarketSavedData> STREAM_CODEC = PersistedParser.createStreamCodec(MarketSavedData::new);
 
     @Getter
     @Persisted

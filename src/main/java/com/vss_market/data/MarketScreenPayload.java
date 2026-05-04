@@ -9,8 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 
@@ -22,7 +21,7 @@ import java.util.UUID;
 @Accessors(chain = true)
 public class MarketScreenPayload implements IPersistedSerializable {
     public static final Codec<MarketScreenPayload> CODEC = PersistedParser.createCodec(MarketScreenPayload::new);
-    public static final StreamCodec<RegistryFriendlyByteBuf, MarketScreenPayload> STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC);
+    public static final StreamCodec<ByteBuf, MarketScreenPayload> STREAM_CODEC = PersistedParser.createStreamCodec(MarketScreenPayload::new);
 
     @Persisted
     private MarketSavedData market = new MarketSavedData();

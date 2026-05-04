@@ -4,13 +4,11 @@ import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
-import com.viscriptshop.gui.data.ShopInfo;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,8 +19,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @Accessors(chain = true)
 public class MarketListing implements IPersistedSerializable {
-    public static final StreamCodec<RegistryFriendlyByteBuf, MarketListing> STREAM_CODEC;
-    public static final Codec<MarketListing> CODEC;
+    public static final Codec<MarketListing> CODEC = PersistedParser.createCodec(MarketListing::new);
+    public static final StreamCodec<ByteBuf, MarketListing> STREAM_CODEC = PersistedParser.createStreamCodec(MarketListing::new);
 
     @Persisted
     private String id = UUID.randomUUID().toString();
@@ -38,11 +36,6 @@ public class MarketListing implements IPersistedSerializable {
     private long createdTime;
     @Persisted
     private long updatedTime;
-
-    static {
-        CODEC = PersistedParser.createCodec(MarketListing::new);
-        STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC);
-    }
 
     public ItemStack displayStack() {
         if (item.isEmpty()) {

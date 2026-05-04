@@ -8,8 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.ByteBufCodecs;
+import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 
 import java.util.ArrayList;
@@ -22,8 +21,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @Accessors(chain = true)
 public class PlayerShopData implements IPersistedSerializable {
-    public static final StreamCodec<RegistryFriendlyByteBuf, PlayerShopData> STREAM_CODEC;
-    public static final Codec<PlayerShopData> CODEC;
+    public static final Codec<PlayerShopData> CODEC = PersistedParser.createCodec(PlayerShopData::new);
+    public static final StreamCodec<ByteBuf, PlayerShopData> STREAM_CODEC = PersistedParser.createStreamCodec(PlayerShopData::new);
 
     @Persisted
     private UUID ownerId = new UUID(0L, 0L);
@@ -39,11 +38,6 @@ public class PlayerShopData implements IPersistedSerializable {
     private long updatedTime;
     @Persisted
     private final List<MarketListing> listings = new ArrayList<>();
-
-    static {
-        CODEC = PersistedParser.createCodec(PlayerShopData::new);
-        STREAM_CODEC = ByteBufCodecs.fromCodecWithRegistries(CODEC);
-    }
 
     public Optional<MarketListing> findListing(String listingId) {
         return listings.stream().filter(listing -> listing.getId().equals(listingId)).findFirst();
