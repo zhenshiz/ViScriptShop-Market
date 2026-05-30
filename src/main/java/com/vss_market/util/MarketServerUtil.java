@@ -4,7 +4,7 @@ import com.vss_market.Config;
 import com.vss_market.data.MarketListing;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.data.PlayerShopData;
-import com.viscriptshop.util.ItemUtil;
+import com.viscript_lib.util.ItemUtil;
 import com.viscriptshop.util.ViScriptShopServerUtil;
 import lombok.experimental.UtilityClass;
 import net.minecraft.server.level.ServerPlayer;

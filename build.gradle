@@ -153,6 +153,7 @@ modAccessor {
 dependencies {
     //ldlib2
     implementation("com.lowdragmc.ldlib2:ldlib2-neoforge-${minecraft_version}:${ldlib2_version}:all")
+    implementation "com.zhenshiz:ViScriptLib-neoforge-${minecraft_version}:${viscriptlib_version}"
     //viscript_shop
     implementation("com:ViScriptShop-neoforge-1.21.1:${viscriptshop_version}") {
         transitive = false
@@ -185,6 +186,7 @@ tasks.withType(ProcessResources).configureEach {
                              mod_authors            : mod_authors,
                              mod_description        : mod_description,
                              ldlib2_version         : ldlib2_version,
+                             viscriptlib_version    : viscriptlib_version,
                              viscriptshop_version   : viscriptshop_version]
     inputs.properties replaceProperties
 

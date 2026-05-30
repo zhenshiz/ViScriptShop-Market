@@ -3,7 +3,7 @@ package com.vss_market.command;
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
-import com.viscriptshop.command.ICommand;
+import com.viscript_lib.register.ICommand;
 import com.vss_market.VSSMarket;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.network.s2c.S2CPayload;

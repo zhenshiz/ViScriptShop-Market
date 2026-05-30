@@ -1,6 +1,6 @@
 # ViScriptShop Market
 
-ViScriptShop Market 是一个基于 NeoForge、LDLib2 和 ViScriptShop 的玩家寄售市场附属模组。它提供一个全服玩家市场：玩家可以创建自己的店铺，把背包或兼容容器中的物品按“每组数量 + 库存组数”上架出售，其他玩家使用 ViScriptShop 金币购买。商品收入会先存入店铺余额，店主可以在管理界面中领取。
+ViScriptShop Market 是一个基于 NeoForge、LDLib2、ViScriptLib 和 ViScriptShop 的玩家寄售市场附属模组。它提供一个全服玩家市场：玩家可以创建自己的店铺，把背包或兼容容器中的物品按“每组数量 + 库存组数”上架出售，其他玩家使用 ViScriptShop 金币购买。商品收入会先存入店铺余额，店主可以在管理界面中领取。
 
 ## 当前状态
 
@@ -24,7 +24,7 @@ ViScriptShop Market 是一个基于 NeoForge、LDLib2 和 ViScriptShop 的玩家
 - **金币交易**：买家使用 ViScriptShop 金币支付，卖家收入进入店铺待领取金币。
 - **库存管理**：上架和补货会扣除卖家物品；下架和删除店铺会返还剩余库存。
 - **安全删除**：删除店铺前会弹出确认框，确认后返还剩余库存并领取店铺余额。
-- **兼容物品来源**：物品统计和扣除使用 ViScriptShop 的 `ItemUtil`，用于兼容精妙背包、超越维度等扩展容器逻辑。
+- **兼容物品来源**：物品统计和扣除使用 ViScriptLib 的 `ItemUtil`，用于兼容精妙背包、超越维度等扩展容器逻辑。
 - **服务端校验**：价格、数量、库存、余额、店铺归属等关键逻辑均在服务端校验。
 - **持久化**：店铺、商品、库存、价格和待领取金币保存在世界数据中。
 
@@ -32,7 +32,8 @@ ViScriptShop Market 是一个基于 NeoForge、LDLib2 和 ViScriptShop 的玩家
 
 - Minecraft `1.21.1`
 - NeoForge `21.1.216` 或同范围版本
-- LDLib2 `2.2.5`
+- LDLib2 `2.2.13`
+- ViScriptLib `1.0.3`
 - ViScriptShop
 
 ## 如何打开市场
@@ -117,7 +118,7 @@ ViScriptShop Market 是一个基于 NeoForge、LDLib2 和 ViScriptShop 的玩家
 - 物品显示名
 - 物品 ID
 
-物品匹配使用 ViScriptShop 的 `SimpleItemStackFilter`，因此搜索行为会尽量贴近 ViScriptShop 原有物品筛选逻辑。
+物品匹配使用 ViScriptLib 的 `SimpleItemStackFilter`，因此搜索行为会尽量贴近通用物品筛选逻辑。
 
 ## 配置
 

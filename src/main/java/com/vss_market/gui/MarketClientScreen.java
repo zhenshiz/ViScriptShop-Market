@@ -18,6 +18,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -25,9 +27,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscript_lib.util.SimpleItemStackFilter;
 import com.viscriptshop.gui.components.Message;
-import com.viscriptshop.gui.components.SelectItemDialog;
-import com.viscriptshop.util.SimpleItemStackFilter;
 import com.vss_market.data.MarketListing;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.data.PlayerShopData;
@@ -43,6 +44,7 @@ import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
@@ -424,7 +426,7 @@ public class MarketClientScreen extends UIElement {
             layout.alignItems(AlignItems.CENTER);
         }).addClass("preview_bg");
         selected.addChildren(
-                new ItemSlot().setItem(uploadStack).layout(layout -> layout.width(28).height(28)),
+                displayItemSlot(uploadStack).layout(layout -> layout.width(28).height(28)),
                 columnAuto().layout(layout -> {
                     layout.flex(1);
                     layout.gapAll(2);
@@ -433,11 +435,8 @@ public class MarketClientScreen extends UIElement {
                         literalLabel(uploadStack.isEmpty() ? "-" : uploadStack.getHoverName().getString()),
                         literalLabel(uploadStack.isEmpty() ? "" : itemId(uploadStack))
                 ),
-                button("vss_market.ui.select_item", false, event ->
-                        new SelectItemDialog(stack -> {
-                            uploadStack = stack.copyWithCount(1);
-                            rebuild();
-                        }).show(this)).layout(layout -> layout.widthPercent(24).height(22))
+                button("vss_market.ui.select_item", false, event -> showSelectItemDialog())
+                        .layout(layout -> layout.widthPercent(24).height(22))
         );
 
         var priceField = textField(Integer.toString(uploadPrice), "vss_market.ui.price");
@@ -505,7 +504,7 @@ public class MarketClientScreen extends UIElement {
             layout.alignItems(AlignItems.CENTER);
         }).addClass("preview_bg");
         detail.addChildren(
-                new ItemSlot().setItem(listingData.displayStack()).layout(layout -> layout.width(36).height(36)),
+                displayItemSlot(listingData.displayStack()).layout(layout -> layout.width(36).height(36)),
                 columnAuto().layout(layout -> {
                     layout.flex(1);
                     layout.gapAll(3);
@@ -642,7 +641,7 @@ public class MarketClientScreen extends UIElement {
 
         card.addChildren(
                 cardLabel(Component.literal(listing.getItem().isEmpty() ? "-" : listing.getItem().getHoverName().getString()), 6.5f, 10),
-                new ItemSlot().setItem(listing.displayStack()).layout(layout -> layout.width(22).height(22)),
+                displayItemSlot(listing.displayStack()).layout(layout -> layout.width(22).height(22)),
                 cardLabel(Component.translatable("vss_market.ui.price_value", listing.getPrice()), 7.5f, 9),
                 cardButton
         );
@@ -659,6 +658,54 @@ public class MarketClientScreen extends UIElement {
                     }
                 }
         ).show(this);
+    }
+
+    private void showSelectItemDialog() {
+        var dialog = new Dialog();
+        dialog.setTitle("vss_market.ui.select_item");
+        dialog.overlay.layout(layout -> layout.width(194));
+
+        var slots = new InventorySlots();
+        bindClientInventorySlots(slots);
+        slots.layout(layout -> {
+            layout.width(176);
+            layout.gapAll(2);
+        });
+        slots.apply(slot -> slot.addEventListener(UIEvents.MOUSE_DOWN, event -> {
+            if (event.button == 0) {
+                var stack = slot.getValue();
+                if (!stack.isEmpty()) {
+                    uploadStack = stack.copyWithCount(1);
+                    dialog.close();
+                    rebuild();
+                }
+            }
+            event.stopImmediatePropagation();
+        }));
+
+        dialog.addContent(slots);
+        dialog.addButton(new Button()
+                .setOnClick(event -> dialog.close())
+                .setText("ldlib.gui.tips.cancel")
+                .addClass("__cancel-button__"));
+        dialog.show(this);
+    }
+
+    private static void bindClientInventorySlots(InventorySlots slots) {
+        var player = Minecraft.getInstance().player;
+        if (player == null) {
+            return;
+        }
+        var inventory = player.getInventory();
+        // 当前市场是纯客户端 ModularUIScreen，InventorySlots 只会在容器菜单里自动绑定槽位。
+        for (int row = 0; row < slots.rows.length; row++) {
+            for (int column = 0; column < slots.rows[row].slots.length; column++) {
+                slots.rows[row].slots[column].bind(new Slot(inventory, row * 9 + column + 9, 0, 0));
+            }
+        }
+        for (int i = 0; i < slots.hotbar.slots.length; i++) {
+            slots.hotbar.slots[i].bind(new Slot(inventory, i, 0, 0));
+        }
     }
 
     private static UIElement actionRow() {
@@ -989,6 +1036,15 @@ public class MarketClientScreen extends UIElement {
                 .textWrap(TextWrap.HIDE)
                 .lineSpacing(0));
         return button;
+    }
+
+    private static ItemSlot displayItemSlot(ItemStack stack) {
+        var slot = new ItemSlot().setItem(stack);
+        slot.style(style -> style.backgroundTexture(IGuiTexture.EMPTY));
+        slot.slotStyle(style -> style
+                .slotOverlay(IGuiTexture.EMPTY)
+                .hoverOverlay(IGuiTexture.EMPTY));
+        return slot;
     }
 
     private static String currentPlayerName() {
