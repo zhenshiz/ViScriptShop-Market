@@ -27,7 +27,7 @@ import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
-import com.viscript_lib.util.SimpleItemStackFilter;
+import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.gui.components.Message;
 import com.vss_market.data.MarketListing;
 import com.vss_market.data.MarketSavedData;
