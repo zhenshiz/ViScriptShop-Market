@@ -51,8 +51,12 @@ public class S2CPayload {
     }
 
     private static MarketScreenPayload createPayload(ServerPlayer player, String selectedShopId, String selectedListingId, String view, MarketResult result) {
+        var marketData = MarketServerUtil.data(player);
+        for (var onlinePlayer : player.server.getPlayerList().getPlayers()) {
+            marketData.refreshShopOwnerProfile(onlinePlayer.getGameProfile());
+        }
         var payload = new MarketScreenPayload()
-                .setMarket(MarketServerUtil.data(player))
+                .setMarket(marketData)
                 .setViewer(player.getUUID())
                 .setSelectedShop(selectedShopId)
                 .setSelectedListing(selectedListingId)

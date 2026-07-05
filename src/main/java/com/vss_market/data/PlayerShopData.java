@@ -29,6 +29,10 @@ public class PlayerShopData implements IPersistedSerializable {
     @Persisted
     private String ownerName = "";
     @Persisted
+    private String ownerTexture = "";
+    @Persisted
+    private String ownerTextureSignature = "";
+    @Persisted
     private String name = "";
     @Persisted
     private int balance;

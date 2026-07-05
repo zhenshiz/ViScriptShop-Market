@@ -20,7 +20,7 @@ public class MarketServerUtil {
     }
 
     public static PlayerShopData getOrCreateShop(ServerPlayer player) {
-        return data(player).getOrCreateShop(player.getUUID(), player.getGameProfile().getName());
+        return data(player).getOrCreateShop(player.getGameProfile());
     }
 
     public static MarketResult createShop(ServerPlayer player) {
@@ -28,7 +28,7 @@ public class MarketServerUtil {
         if (savedData.findShop(player.getUUID()).isPresent()) {
             return MarketResult.error("vss_market.message.shop_already_exists");
         }
-        savedData.getOrCreateShop(player.getUUID(), player.getGameProfile().getName());
+        savedData.getOrCreateShop(player.getGameProfile());
         return MarketResult.success("vss_market.message.shop_created");
     }
 
@@ -38,7 +38,7 @@ public class MarketServerUtil {
             return MarketResult.error("vss_market.message.invalid_shop_name");
         }
         var savedData = data(player);
-        var shop = savedData.getOrCreateShop(player.getUUID(), player.getGameProfile().getName());
+        var shop = savedData.getOrCreateShop(player.getGameProfile());
         shop.setName(normalized).setUpdatedTime(System.currentTimeMillis());
         savedData.setDirty();
         return MarketResult.success("vss_market.message.shop_saved");
@@ -59,7 +59,7 @@ public class MarketServerUtil {
             return MarketResult.error("vss_market.message.invalid_count");
         }
         var savedData = data(player);
-        var shop = savedData.getOrCreateShop(player.getUUID(), player.getGameProfile().getName());
+        var shop = savedData.getOrCreateShop(player.getGameProfile());
         if (shop.getListings().size() >= Config.MAX_LISTINGS_PER_SHOP.get()) {
             return MarketResult.error("vss_market.message.too_many_listings");
         }

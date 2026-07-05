@@ -3,6 +3,8 @@ package com.vss_market.data;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import com.mojang.serialization.Codec;
 import com.vss_market.VSSMarket;
 import lombok.Getter;
@@ -21,6 +23,7 @@ import java.util.UUID;
 
 public class MarketSavedData extends SavedData implements IPersistedSerializable {
     private static final String DATA_NAME = VSSMarket.MOD_ID + "_market";
+    private static final String TEXTURES_PROPERTY = "textures";
     private static final Factory<MarketSavedData> FACTORY = new Factory<>(MarketSavedData::new, MarketSavedData::load);
 
     public static final Codec<MarketSavedData> CODEC = PersistedParser.createCodec(MarketSavedData::new);
@@ -76,22 +79,60 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
     public PlayerShopData getOrCreateShop(UUID ownerId, String ownerName) {
         var shop = findShop(ownerId).orElse(null);
         if (shop != null) {
-            if (!ownerName.isBlank() && !ownerName.equals(shop.getOwnerName())) {
-                shop.setOwnerName(ownerName);
+            var normalizedOwnerName = ownerName == null ? "" : ownerName;
+            if (!normalizedOwnerName.isBlank() && !normalizedOwnerName.equals(shop.getOwnerName())) {
+                shop.setOwnerName(normalizedOwnerName);
                 setDirty();
             }
             return shop;
         }
         long now = System.currentTimeMillis();
+        var normalizedOwnerName = ownerName == null ? "" : ownerName;
         shop = new PlayerShopData()
                 .setOwnerId(ownerId)
-                .setOwnerName(ownerName)
-                .setName(ownerName)
+                .setOwnerName(normalizedOwnerName)
+                .setName(normalizedOwnerName)
                 .setCreatedTime(now)
                 .setUpdatedTime(now);
         shops.add(shop);
         setDirty();
         return shop;
+    }
+
+    public PlayerShopData getOrCreateShop(GameProfile ownerProfile) {
+        var shop = getOrCreateShop(ownerProfile.getId(), ownerProfile.getName());
+        if (updateShopOwnerProfile(shop, ownerProfile)) {
+            setDirty();
+        }
+        return shop;
+    }
+
+    public boolean refreshShopOwnerProfile(GameProfile ownerProfile) {
+        var shop = findShop(ownerProfile.getId()).orElse(null);
+        if (shop == null || !updateShopOwnerProfile(shop, ownerProfile)) {
+            return false;
+        }
+        setDirty();
+        return true;
+    }
+
+    private static boolean updateShopOwnerProfile(PlayerShopData shop, GameProfile ownerProfile) {
+        boolean changed = false;
+        var ownerName = ownerProfile.getName();
+        if (ownerName != null && !ownerName.isBlank() && !ownerName.equals(shop.getOwnerName())) {
+            shop.setOwnerName(ownerName);
+            changed = true;
+        }
+        Property texture = ownerProfile.getProperties().get(TEXTURES_PROPERTY).stream().findFirst().orElse(null);
+        if (texture != null) {
+            var signature = texture.signature() == null ? "" : texture.signature();
+            if (!texture.value().equals(shop.getOwnerTexture()) || !signature.equals(shop.getOwnerTextureSignature())) {
+                shop.setOwnerTexture(texture.value());
+                shop.setOwnerTextureSignature(signature);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     public boolean removeShop(UUID ownerId) {

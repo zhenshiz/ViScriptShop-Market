@@ -3,6 +3,7 @@ package com.vss_market.gui;
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
 import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
@@ -40,8 +41,10 @@ import dev.vfyjxf.taffy.style.FlexDirection;
 import dev.vfyjxf.taffy.style.GridAutoFlow;
 import dev.vfyjxf.taffy.style.TaffyDisplay;
 import dev.vfyjxf.taffy.style.TrackSizingFunction;
+import net.minecraft.Util;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.PlayerSkin;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.Slot;
@@ -53,8 +56,12 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @OnlyIn(Dist.CLIENT)
 public class MarketClientScreen extends UIElement {
@@ -273,7 +280,7 @@ public class MarketClientScreen extends UIElement {
                 shopRowLabel(shop.getOwnerName(), 7f)
         );
         row.addChildren(
-                new PlayerFaceElement(shop.getOwnerId(), shop.getOwnerName()).layout(layout -> layout.width(18).height(18)),
+                new PlayerFaceElement(shop).layout(layout -> layout.width(18).height(18)),
                 text
         );
         return row;
@@ -1053,10 +1060,20 @@ public class MarketClientScreen extends UIElement {
     }
 
     private static class PlayerFaceElement extends UIElement {
-        private final GameProfile profile;
+        private static final String TEXTURES_PROPERTY = "textures";
+        private static final Map<UUID, Supplier<PlayerSkin>> REMOTE_SKIN_CACHE = new ConcurrentHashMap<>();
+        private final Supplier<PlayerSkin> skinGetter;
 
         private PlayerFaceElement(UUID playerId, String playerName) {
-            this.profile = new GameProfile(playerId, playerName == null ? "" : playerName);
+            this(createProfile(playerId, playerName));
+        }
+
+        private PlayerFaceElement(PlayerShopData shop) {
+            this(createProfile(shop));
+        }
+
+        private PlayerFaceElement(GameProfile profile) {
+            this.skinGetter = createSkinGetter(profile);
             layout(layout -> {
                 layout.width(18);
                 layout.height(18);
@@ -1067,16 +1084,73 @@ public class MarketClientScreen extends UIElement {
         public void drawBackgroundAdditional(GUIContext guiContext) {
             RenderSystem.depthMask(false);
             guiContext.graphics.drawManaged(() -> {
-                var skin = Minecraft.getInstance().getSkinManager().getInsecureSkin(profile);
                 PlayerFaceRenderer.draw(
                         guiContext.graphics,
-                        skin,
+                        skinGetter.get(),
                         (int) getPositionX(),
                         (int) getPositionY(),
                         (int) Math.min(getSizeWidth(), getSizeHeight())
                 );
             });
             RenderSystem.depthMask(true);
+        }
+
+        private static GameProfile createProfile(UUID playerId, String playerName) {
+            return new GameProfile(playerId, playerName == null ? "" : playerName);
+        }
+
+        private static GameProfile createProfile(PlayerShopData shop) {
+            var profile = createProfile(shop.getOwnerId(), shop.getOwnerName());
+            if (!shop.getOwnerTexture().isBlank()) {
+                profile.getProperties().put(TEXTURES_PROPERTY, createTextureProperty(shop));
+            }
+            return profile;
+        }
+
+        private static Property createTextureProperty(PlayerShopData shop) {
+            if (shop.getOwnerTextureSignature().isBlank()) {
+                return new Property(TEXTURES_PROPERTY, shop.getOwnerTexture());
+            }
+            return new Property(TEXTURES_PROPERTY, shop.getOwnerTexture(), shop.getOwnerTextureSignature());
+        }
+
+        private static Supplier<PlayerSkin> createSkinGetter(GameProfile profile) {
+            var minecraft = Minecraft.getInstance();
+            var playerId = profile.getId();
+            var connection = minecraft.getConnection();
+            if (connection != null && playerId != null) {
+                var playerInfo = connection.getPlayerInfo(playerId);
+                if (playerInfo != null) {
+                    return playerInfo::getSkin;
+                }
+            }
+            if (profile.getProperties().containsKey(TEXTURES_PROPERTY) || playerId == null || Util.NIL_UUID.equals(playerId)) {
+                return minecraft.getSkinManager().lookupInsecure(profile);
+            }
+            return REMOTE_SKIN_CACHE.computeIfAbsent(playerId, ignored -> new RemoteSkinSupplier(profile));
+        }
+
+        private static class RemoteSkinSupplier implements Supplier<PlayerSkin> {
+            private volatile Supplier<PlayerSkin> skinGetter;
+
+            private RemoteSkinSupplier(GameProfile fallbackProfile) {
+                var minecraft = Minecraft.getInstance();
+                var sessionService = minecraft.getMinecraftSessionService();
+                this.skinGetter = minecraft.getSkinManager().lookupInsecure(fallbackProfile);
+                CompletableFuture
+                        .supplyAsync(() -> sessionService.fetchProfile(fallbackProfile.getId(), true), Util.nonCriticalIoPool())
+                        .thenAccept(result -> {
+                            if (result != null && result.profile() != null) {
+                                skinGetter = Minecraft.getInstance().getSkinManager().lookupInsecure(result.profile());
+                            }
+                        })
+                        .exceptionally(throwable -> null);
+            }
+
+            @Override
+            public PlayerSkin get() {
+                return skinGetter.get();
+            }
         }
     }
 }
