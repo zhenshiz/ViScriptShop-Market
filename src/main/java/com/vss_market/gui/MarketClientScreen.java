@@ -89,6 +89,7 @@ public class MarketClientScreen extends UIElement {
     private int uploadPrice = 1;
     private int uploadBundleSize = 1;
     private int uploadStock = 1;
+    private float shopListScroll;
 
     private MarketClientScreen(MarketScreenPayload payload) {
         this.snapshot = payload.getMarket();
@@ -103,6 +104,7 @@ public class MarketClientScreen extends UIElement {
         this.uploadPrice = Math.max(1, payload.getUploadPrice());
         this.uploadBundleSize = Math.max(1, payload.getUploadBundleSize());
         this.uploadStock = Math.max(1, payload.getUploadStock());
+        this.shopListScroll = clampScroll(payload.getShopListScroll());
         initRoot();
     }
 
@@ -178,6 +180,17 @@ public class MarketClientScreen extends UIElement {
         addChild(shell);
     }
 
+    private void requestMarket() {
+        RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_MARKET_STATE, selectedShopId, view.name(), shopListScroll);
+    }
+
+    private static float clampScroll(float value) {
+        if (Float.isNaN(value) || Float.isInfinite(value)) {
+            return 0f;
+        }
+        return Math.max(0f, Math.min(1f, value));
+    }
+
     private UIElement createSidebar() {
         var sidebar = columnAuto().layout(layout -> {
             layout.widthPercent(27);
@@ -213,7 +226,7 @@ public class MarketClientScreen extends UIElement {
                     selectedShopId = viewerId.toString();
                     selectedListingId = "";
                     view = View.MANAGE;
-                    RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_MARKET, selectedShopId, view.name());
+                    requestMarket();
                 }).layout(layout -> {
                     layout.widthPercent(100);
                     layout.flex(1);
@@ -247,6 +260,8 @@ public class MarketClientScreen extends UIElement {
         snapshot.getShops().stream()
                 .sorted(Comparator.comparing(PlayerShopData::getUpdatedTime).reversed())
                 .forEach(shop -> shopList.addScrollViewChild(createShopRow(shop)));
+        shopList.verticalScroller.setValue(shopListScroll, false);
+        shopList.verticalScroller.setOnValueChanged(value -> shopListScroll = clampScroll(value));
 
         listPanel.addChildren(centerLabel("vss_market.ui.shops"), shopList);
         sidebar.addChildren(profile, listPanel);
@@ -260,7 +275,7 @@ public class MarketClientScreen extends UIElement {
                     selectedShopId = shop.getOwnerId().toString();
                     selectedListingId = "";
                     view = View.MARKET;
-                    RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_MARKET, selectedShopId, view.name());
+                    requestMarket();
                 });
         row.layout(layout -> {
             layout.widthPercent(100);

@@ -107,6 +107,30 @@ neoForge {
             programArgument 'zhenshiz'
         }
 
+        clinet3 {
+            client()
+
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--username'
+            programArgument 'test'
+        }
+
+        clinet4 {
+            client()
+
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--username'
+            programArgument 'test1'
+        }
+
+        clinet5 {
+            client()
+
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            programArgument '--username'
+            programArgument 'test2'
+        }
+
         server {
             server()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id

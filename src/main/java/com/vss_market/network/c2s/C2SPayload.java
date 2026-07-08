@@ -10,6 +10,7 @@ import net.minecraft.world.item.ItemStack;
 public class C2SPayload {
     public static final String MOD_ID = VSSMarket.MOD_ID + ":";
     public static final String REQUEST_MARKET = MOD_ID + "request_market_c2s";
+    public static final String REQUEST_MARKET_STATE = MOD_ID + "request_market_state_c2s";
     public static final String CREATE_SHOP = MOD_ID + "create_shop_c2s";
     public static final String RENAME_SHOP = MOD_ID + "rename_shop_c2s";
     public static final String UPLOAD_LISTING = MOD_ID + "upload_listing_c2s";
@@ -25,6 +26,14 @@ public class C2SPayload {
         var player = sender.asPlayer();
         if (player != null) {
             S2CPayload.open(player, selectedShopId, view, null);
+        }
+    }
+
+    @RPCPacket(REQUEST_MARKET_STATE)
+    public static void requestMarketState(RPCSender sender, String selectedShopId, String view, float shopListScroll) {
+        var player = sender.asPlayer();
+        if (player != null) {
+            S2CPayload.open(player, selectedShopId, "", view, shopListScroll, null);
         }
     }
 

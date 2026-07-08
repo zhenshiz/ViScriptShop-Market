@@ -38,11 +38,15 @@ public class S2CPayload {
     }
 
     public static void open(ServerPlayer player, String selectedShopId, String selectedListingId, String view, MarketResult result) {
-        RPCPacketDistributor.rpcToPlayer(player, OPEN_MARKET_SCREEN, createPayload(player, selectedShopId, selectedListingId, view, result));
+        open(player, selectedShopId, selectedListingId, view, 0f, result);
+    }
+
+    public static void open(ServerPlayer player, String selectedShopId, String selectedListingId, String view, float shopListScroll, MarketResult result) {
+        RPCPacketDistributor.rpcToPlayer(player, OPEN_MARKET_SCREEN, createPayload(player, selectedShopId, selectedListingId, view, shopListScroll, result));
     }
 
     public static void openUpload(ServerPlayer player, MarketResult result, ItemStack stack, int price, int bundleSize, int stock) {
-        var payload = createPayload(player, player.getUUID().toString(), "", "UPLOAD", result);
+        var payload = createPayload(player, player.getUUID().toString(), "", "UPLOAD", 0f, result);
         payload.setUploadStack(stack)
                 .setUploadPrice(price)
                 .setUploadBundleSize(bundleSize)
@@ -50,7 +54,7 @@ public class S2CPayload {
         RPCPacketDistributor.rpcToPlayer(player, OPEN_MARKET_SCREEN, payload);
     }
 
-    private static MarketScreenPayload createPayload(ServerPlayer player, String selectedShopId, String selectedListingId, String view, MarketResult result) {
+    private static MarketScreenPayload createPayload(ServerPlayer player, String selectedShopId, String selectedListingId, String view, float shopListScroll, MarketResult result) {
         var marketData = MarketServerUtil.data(player);
         for (var onlinePlayer : player.server.getPlayerList().getPlayers()) {
             marketData.refreshShopOwnerProfile(onlinePlayer.getGameProfile());
@@ -61,7 +65,8 @@ public class S2CPayload {
                 .setSelectedShop(selectedShopId)
                 .setSelectedListing(selectedListingId)
                 .setView(view)
-                .setMoney(ViScriptShopServerUtil.getMoney(player));
+                .setMoney(ViScriptShopServerUtil.getMoney(player))
+                .setShopListScroll(shopListScroll);
         if (result != null) {
             payload.setMessageKey(result.messageKey())
                     .setMessageType(result.type().name());
