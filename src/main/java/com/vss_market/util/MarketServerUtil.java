@@ -2,6 +2,7 @@ package com.vss_market.util;
 
 import com.vss_market.Config;
 import com.vss_market.data.MarketListing;
+import com.vss_market.data.MarketPurchaseRecord;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.data.PlayerShopData;
 import com.viscript_lib.util.item.ItemUtil;
@@ -15,6 +16,8 @@ import java.util.UUID;
 
 @UtilityClass
 public class MarketServerUtil {
+    private static final int MAX_PURCHASE_RECORDS = 200;
+
     public static MarketSavedData data(ServerPlayer player) {
         return MarketSavedData.get(player.server.overworld());
     }
@@ -117,10 +120,19 @@ public class MarketServerUtil {
             return MarketResult.error("vss_market.message.price_too_large");
         }
 
-        ViScriptShopServerUtil.removeMoney(buyer, (int) total);
+        int moneySpent = (int) total;
+        long now = System.currentTimeMillis();
+        ViScriptShopServerUtil.removeMoney(buyer, moneySpent);
         giveItem(buyer, listing.unitStack(), itemCount);
-        listing.setStock(listing.getStock() - count).setUpdatedTime(System.currentTimeMillis());
-        shop.setBalance(shop.getBalance() + (int) total).setUpdatedTime(System.currentTimeMillis());
+        listing.setStock(listing.getStock() - count).setUpdatedTime(now);
+        shop.setBalance(shop.getBalance() + moneySpent).setUpdatedTime(now);
+        shop.addPurchaseRecord(new MarketPurchaseRecord()
+                .setBuyerId(buyer.getUUID())
+                .setBuyerName(buyer.getGameProfile().getName())
+                .setItem(listing.unitStack())
+                .setQuantity(itemCount)
+                .setMoneySpent(moneySpent)
+                .setPurchasedTime(now), MAX_PURCHASE_RECORDS);
         savedData.setDirty();
         return MarketResult.success("vss_market.message.buy_success");
     }

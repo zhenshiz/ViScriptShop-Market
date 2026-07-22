@@ -28,9 +28,11 @@ import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.viscript_lib.util.CountTextUtil;
 import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.gui.components.Message;
 import com.vss_market.data.MarketListing;
+import com.vss_market.data.MarketPurchaseRecord;
 import com.vss_market.data.MarketSavedData;
 import com.vss_market.data.PlayerShopData;
 import com.vss_market.network.c2s.C2SPayload;
@@ -213,7 +215,7 @@ public class MarketClientScreen extends UIElement {
             layout.justifyContent(AlignContent.CENTER);
         });
         var balance = new Label();
-        balance.setText(Component.translatable("vss_market.ui.balance", money));
+        balance.setText(Component.translatable("vss_market.ui.balance", countText(money)));
         balance.textStyle(style -> style
                 .textAlignHorizontal(Horizontal.LEFT)
                 .textAlignVertical(Vertical.CENTER)
@@ -394,8 +396,8 @@ public class MarketClientScreen extends UIElement {
                     layout.widthPercent(100);
                     layout.height(22);
                 }),
-                label("vss_market.ui.listing_count", data.getListings().size()),
-                label("vss_market.ui.pending_balance", data.getBalance())
+                label("vss_market.ui.listing_count", countText(data.getListings().size())),
+                label("vss_market.ui.pending_balance", countText(data.getBalance()))
         );
 
         var actions = rowAuto().layout(layout -> {
@@ -412,6 +414,7 @@ public class MarketClientScreen extends UIElement {
                     view = View.UPLOAD;
                     rebuild();
                 }).layout(layout -> layout.flex(1)),
+                button("vss_market.ui.purchase_records", false, event -> showPurchaseRecordsDialog(data)).layout(layout -> layout.flex(1)),
                 button("vss_market.ui.withdraw", false, event ->
                         RPCPacketDistributor.rpcToServer(C2SPayload.WITHDRAW)).layout(layout -> layout.flex(1)),
                 button("vss_market.ui.delete_shop", false, event -> showDeleteShopDialog()).layout(layout -> layout.flex(1)),
@@ -533,9 +536,9 @@ public class MarketClientScreen extends UIElement {
                 }).addChildren(
                         literalLabel(listingData.getItem().getHoverName().getString()),
                         literalLabel(itemId(listingData.getItem())),
-                        label("vss_market.ui.bundle_size_value", listingData.getBundleSize()),
-                        label("vss_market.ui.price_value", listingData.getPrice()),
-                        label("vss_market.ui.stock_groups_value", listingData.getStock())
+                        label("vss_market.ui.bundle_size_value", countText(listingData.getBundleSize())),
+                        label("vss_market.ui.price_value", countText(listingData.getPrice())),
+                        label("vss_market.ui.stock_groups_value", countText(listingData.getStock()))
                 )
         );
         body.addChild(detail);
@@ -575,7 +578,7 @@ public class MarketClientScreen extends UIElement {
             } else {
                 int maxBuyGroups = listingData.getStock();
                 int[] buyGroups = {1};
-                var totalPrice = label("vss_market.ui.total_price", listingData.getPrice());
+                var totalPrice = label("vss_market.ui.total_price", countText(listingData.getPrice()));
                 totalPrice.layout(layout -> layout.width(80).height(18));
 
                 var buyGroupsConfigurator = new NumberConfigurator(
@@ -584,7 +587,7 @@ public class MarketClientScreen extends UIElement {
                         value -> {
                             int count = value == null ? 1 : value.intValue();
                             buyGroups[0] = Math.max(1, Math.min(maxBuyGroups, count));
-                            totalPrice.setText(Component.translatable("vss_market.ui.total_price", (long) listingData.getPrice() * buyGroups[0]));
+                            totalPrice.setText(Component.translatable("vss_market.ui.total_price", countText((long) listingData.getPrice() * buyGroups[0])));
                         },
                         1,
                         false
@@ -643,8 +646,9 @@ public class MarketClientScreen extends UIElement {
             rebuild();
         });
         card.addEventListener(UIEvents.HOVER_TOOLTIPS, event -> event.hoverTooltips = new HoverTooltips(List.of(
-                Component.translatable("vss_market.ui.stock_groups_value", listing.getStock()),
-                Component.translatable("vss_market.ui.bundle_size_value", listing.getBundleSize())
+                Component.translatable("vss_market.ui.stock_groups_value", countText(listing.getStock())),
+                Component.translatable("vss_market.ui.bundle_size_value", countText(listing.getBundleSize())),
+                Component.translatable("vss_market.ui.owner", shop.getOwnerName())
         ), null, null, null));
 
         boolean owner = shop.getOwnerId().equals(viewerId);
@@ -664,7 +668,7 @@ public class MarketClientScreen extends UIElement {
         card.addChildren(
                 cardLabel(Component.literal(listing.getItem().isEmpty() ? "-" : listing.getItem().getHoverName().getString()), 6.5f, 10),
                 displayItemSlot(listing.displayStack()).layout(layout -> layout.width(22).height(22)),
-                cardLabel(Component.translatable("vss_market.ui.price_value", listing.getPrice()), 7.5f, 9),
+                cardLabel(Component.translatable("vss_market.ui.price_value", countText(listing.getPrice())), 7.5f, 9),
                 cardButton
         );
         return card;
@@ -680,6 +684,81 @@ public class MarketClientScreen extends UIElement {
                     }
                 }
         ).show(this);
+    }
+
+    private void showPurchaseRecordsDialog(PlayerShopData shop) {
+        var dialog = new Dialog();
+        dialog.setTitle("vss_market.ui.purchase_records");
+        dialog.overlay.layout(layout -> layout.width(264));
+
+        if (shop.getPurchaseRecords().isEmpty()) {
+            dialog.addContent(emptyState("vss_market.ui.no_purchase_records").layout(layout -> {
+                layout.widthPercent(100);
+                layout.height(32);
+            }));
+        } else {
+            var records = new ScrollerView();
+            records.layout(layout -> {
+                layout.widthPercent(100);
+                layout.height(178);
+            });
+            records.viewContainer.layout(layout -> {
+                layout.widthPercent(100);
+                layout.paddingAll(2);
+                layout.gapAll(4);
+                layout.flexDirection(FlexDirection.COLUMN);
+            });
+            for (var record : shop.getPurchaseRecords()) {
+                records.addScrollViewChild(createPurchaseRecordRow(record));
+            }
+            dialog.addContent(records);
+        }
+
+        dialog.addButton(new Button()
+                .setOnClick(event -> dialog.close())
+                .setText("ldlib.gui.tips.confirm")
+                .addClass("__confirm-button__"));
+        dialog.show(this);
+    }
+
+    private static UIElement createPurchaseRecordRow(MarketPurchaseRecord record) {
+        var row = rowAuto().layout(layout -> {
+            layout.widthPercent(100);
+            layout.height(42);
+            layout.paddingAll(4);
+            layout.gapAll(6);
+            layout.alignItems(AlignItems.CENTER);
+        }).addClass("preview_bg");
+
+        var itemName = record.getItem().isEmpty() ? "-" : record.getItem().getHoverName().getString();
+        var info = columnAuto().layout(layout -> {
+            layout.flex(1);
+            layout.heightPercent(100);
+            layout.justifyContent(AlignContent.CENTER);
+            layout.gapAll(2);
+        });
+        info.addChildren(
+                recordLabel(Component.translatable("vss_market.ui.purchase_record_buyer", record.buyerDisplayName()), 7.5f, 11),
+                recordLabel(Component.literal(itemName), 7f, 10)
+        );
+
+        var amount = columnAuto().layout(layout -> {
+            layout.width(64);
+            layout.heightPercent(100);
+            layout.justifyContent(AlignContent.CENTER);
+            layout.gapAll(2);
+        });
+        amount.addChildren(
+                recordLabel(Component.translatable("vss_market.ui.purchase_record_quantity", countText(record.getQuantity())), 8f, 11),
+                recordLabel(Component.translatable("vss_market.ui.purchase_record_spent", countText(record.getMoneySpent())), 7f, 10)
+        );
+
+        row.addChildren(
+                displayItemSlot(record.displayStack()).layout(layout -> layout.width(24).height(24)),
+                info,
+                amount
+        );
+        return row;
     }
 
     private void showSelectItemDialog() {
@@ -862,6 +941,10 @@ public class MarketClientScreen extends UIElement {
         }
     }
 
+    private static String countText(long value) {
+        return CountTextUtil.formatCount(value);
+    }
+
     private static UIElement mainColumn() {
         return columnAuto().layout(layout -> {
             layout.widthPercent(73);
@@ -977,6 +1060,18 @@ public class MarketClientScreen extends UIElement {
         label.layout(layout -> layout.widthPercent(100).height(height));
         label.textStyle(style -> style
                 .textAlignHorizontal(Horizontal.CENTER)
+                .textAlignVertical(Vertical.CENTER)
+                .textWrap(TextWrap.HIDE)
+                .lineSpacing(0)
+                .fontSize(fontSize));
+        return label;
+    }
+
+    private static Label recordLabel(Component text, float fontSize, float height) {
+        var label = new Label();
+        label.setText(text);
+        label.layout(layout -> layout.widthPercent(100).height(height));
+        label.textStyle(style -> style
                 .textAlignVertical(Vertical.CENTER)
                 .textWrap(TextWrap.HIDE)
                 .lineSpacing(0)
