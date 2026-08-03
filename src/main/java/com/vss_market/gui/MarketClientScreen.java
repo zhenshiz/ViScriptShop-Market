@@ -92,6 +92,7 @@ public class MarketClientScreen extends UIElement {
     private int uploadBundleSize = 1;
     private int uploadStock = 1;
     private float shopListScroll;
+    private float manageListingScroll;
 
     private MarketClientScreen(MarketScreenPayload payload) {
         this.snapshot = payload.getMarket();
@@ -107,6 +108,7 @@ public class MarketClientScreen extends UIElement {
         this.uploadBundleSize = Math.max(1, payload.getUploadBundleSize());
         this.uploadStock = Math.max(1, payload.getUploadStock());
         this.shopListScroll = clampScroll(payload.getShopListScroll());
+        this.manageListingScroll = clampScroll(payload.getManageListingScroll());
         initRoot();
     }
 
@@ -183,7 +185,7 @@ public class MarketClientScreen extends UIElement {
     }
 
     private void requestMarket() {
-        RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_MARKET_STATE, selectedShopId, view.name(), shopListScroll);
+        RPCPacketDistributor.rpcToServer(C2SPayload.REQUEST_MARKET_STATE, selectedShopId, view.name(), shopListScroll, manageListingScroll);
     }
 
     private static float clampScroll(float value) {
@@ -435,6 +437,8 @@ public class MarketClientScreen extends UIElement {
         } else {
             data.getListings().forEach(listing -> listingArea.addScrollViewChild(createListingCard(data, listing)));
         }
+        listingArea.verticalScroller.setValue(manageListingScroll, false);
+        listingArea.verticalScroller.setOnValueChanged(value -> manageListingScroll = clampScroll(value));
         body.addChild(listingArea);
         return panel;
     }
@@ -558,11 +562,11 @@ public class MarketClientScreen extends UIElement {
             var buttons = actionRow();
             buttons.addChildren(
                     actionButton("vss_market.ui.restock", false, event ->
-                            RPCPacketDistributor.rpcToServer(C2SPayload.RESTOCK_LISTING, listingData.getId(), parseInt(restock.getText(), 1))),
+                            RPCPacketDistributor.rpcToServer(C2SPayload.RESTOCK_LISTING, listingData.getId(), parseInt(restock.getText(), 1), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.update_price", false, event ->
-                            RPCPacketDistributor.rpcToServer(C2SPayload.UPDATE_PRICE, listingData.getId(), parseInt(price.getText(), listingData.getPrice()))),
+                            RPCPacketDistributor.rpcToServer(C2SPayload.UPDATE_PRICE, listingData.getId(), parseInt(price.getText(), listingData.getPrice()), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.remove_listing", false, event ->
-                            RPCPacketDistributor.rpcToServer(C2SPayload.REMOVE_LISTING, listingData.getId())),
+                            RPCPacketDistributor.rpcToServer(C2SPayload.REMOVE_LISTING, listingData.getId(), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.back", false, event -> {
                         view = View.MANAGE;
                         selectedListingId = "";
