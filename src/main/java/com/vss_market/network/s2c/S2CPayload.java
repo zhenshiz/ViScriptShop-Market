@@ -49,12 +49,13 @@ public class S2CPayload {
         RPCPacketDistributor.rpcToPlayer(player, OPEN_MARKET_SCREEN, createPayload(player, selectedShopId, selectedListingId, view, shopListScroll, manageListingScroll, result));
     }
 
-    public static void openUpload(ServerPlayer player, MarketResult result, ItemStack stack, int price, int bundleSize, int stock) {
+    public static void openUpload(ServerPlayer player, MarketResult result, ItemStack stack, int price, int bundleSize, int stock, boolean purchaseOrder) {
         var payload = createPayload(player, player.getUUID().toString(), "", "UPLOAD", 0f, 0f, result);
         payload.setUploadStack(stack)
                 .setUploadPrice(price)
                 .setUploadBundleSize(bundleSize)
-                .setUploadStock(stock);
+                .setUploadStock(stock)
+                .setUploadPurchaseOrder(purchaseOrder);
         RPCPacketDistributor.rpcToPlayer(player, OPEN_MARKET_SCREEN, payload);
     }
 

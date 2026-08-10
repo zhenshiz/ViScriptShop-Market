@@ -33,6 +33,8 @@ public class MarketPurchaseRecord implements IPersistedSerializable {
     @Persisted
     private int moneySpent;
     @Persisted
+    private boolean purchaseOrder;
+    @Persisted
     private long purchasedTime;
 
     public ItemStack displayStack() {

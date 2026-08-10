@@ -138,6 +138,37 @@ config/vss_market_config.toml
 
 ## 测试
 
+### LDLib2 UI 自动测试
+
+项目已接入 LDLib2 2.2.34 的客户端 UI 自动测试框架。测试场景位于 `com.vss_market.uitest`，通过稳定的 UI 元素 ID 检查页面结构和交易方向切换，不依赖屏幕坐标。
+
+运行市场上传页面测试：
+
+```bash
+JAVA_HOME=/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home ./gradlew runClient -PldTest=market_upload_screen
+```
+
+运行所有已注册场景：
+
+```bash
+JAVA_HOME=/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home ./gradlew runClient -PldTest=all
+```
+
+测试完成后，客户端会自动退出，Gradle 会读取并校验以下报告：
+
+```text
+build/ldlib2-uitest/report.json
+build/ldlib2-uitest/report.txt
+build/ldlib2-uitest/screenshots/
+```
+
+可以通过以下 Gradle 属性调整测试行为：
+
+- `-PldTestExclude=场景名`：排除指定场景。
+- `-PldTestWindow=1280x720`：固定测试窗口尺寸，方便比较截图。
+- `-PldTestGuiScale=2`：设置默认 GUI Scale。
+- `-PldTestKeepOpen`：测试完成后保留游戏窗口，不自动关闭。
+
 详细手动测试清单见：
 
 ```text

@@ -54,14 +54,14 @@ public class C2SPayload {
     }
 
     @RPCPacket(UPLOAD_LISTING)
-    public static void uploadListing(RPCSender sender, ItemStack stack, int price, int bundleSize, int stock) {
+    public static void uploadListing(RPCSender sender, ItemStack stack, int price, int bundleSize, int stock, boolean purchaseOrder) {
         var player = sender.asPlayer();
         if (player != null) {
-            var result = MarketServerUtil.uploadListing(player, stack, price, bundleSize, stock);
+            var result = MarketServerUtil.uploadListing(player, stack, price, bundleSize, stock, purchaseOrder);
             if (result.success()) {
                 S2CPayload.open(player, player.getUUID().toString(), "MANAGE", result);
             } else {
-                S2CPayload.openUpload(player, result, stack, price, bundleSize, stock);
+                S2CPayload.openUpload(player, result, stack, price, bundleSize, stock, purchaseOrder);
             }
         }
     }

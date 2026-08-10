@@ -47,7 +47,7 @@ public class MarketServerUtil {
         return MarketResult.success("vss_market.message.shop_saved");
     }
 
-    public static MarketResult uploadListing(ServerPlayer player, ItemStack stack, int price, int bundleSize, int stock) {
+    public static MarketResult uploadListing(ServerPlayer player, ItemStack stack, int price, int bundleSize, int stock, boolean purchaseOrder) {
         if (!validatePrice(price)) {
             return MarketResult.error("vss_market.message.invalid_price");
         }
@@ -67,23 +67,37 @@ public class MarketServerUtil {
             return MarketResult.error("vss_market.message.too_many_listings");
         }
         var unitStack = stack.copyWithCount(1);
-        if (ItemUtil.getItemForPlayerCount(player, unitStack) < requiredItems) {
-            return MarketResult.error("vss_market.message.not_enough_item");
+        if (purchaseOrder) {
+            long total = totalPrice(price, stock);
+            if (total <= 0 || total > Integer.MAX_VALUE) {
+                return MarketResult.error("vss_market.message.price_too_large");
+            }
+            if (ViScriptShopServerUtil.getMoney(player) < total) {
+                return MarketResult.error("vss_market.message.not_enough_money");
+            }
+            ViScriptShopServerUtil.removeMoney(player, (int) total);
+        } else {
+            if (ItemUtil.getItemForPlayerCount(player, unitStack) < requiredItems) {
+                return MarketResult.error("vss_market.message.not_enough_item");
+            }
+            ItemUtil.removeItemForPlayer(player, unitStack, requiredItems);
         }
 
-        ItemUtil.removeItemForPlayer(player, unitStack, requiredItems);
         long now = System.currentTimeMillis();
         var listing = new MarketListing()
                 .setItem(unitStack)
                 .setPrice(price)
                 .setBundleSize(bundleSize)
                 .setStock(stock)
+                .setPurchaseOrder(purchaseOrder)
                 .setCreatedTime(now)
                 .setUpdatedTime(now);
         shop.getListings().add(listing);
         shop.setUpdatedTime(now);
         savedData.setDirty();
-        return MarketResult.success("vss_market.message.uploaded");
+        return MarketResult.success(purchaseOrder
+                ? "vss_market.message.purchase_uploaded"
+                : "vss_market.message.uploaded");
     }
 
     public static MarketResult buyListing(ServerPlayer buyer, String ownerId, String listingId, int count) {
@@ -113,28 +127,47 @@ public class MarketServerUtil {
         if (total > Integer.MAX_VALUE) {
             return MarketResult.error("vss_market.message.price_too_large");
         }
-        if (ViScriptShopServerUtil.getMoney(buyer) < total) {
-            return MarketResult.error("vss_market.message.not_enough_money");
-        }
-        if ((long) shop.getBalance() + total > Integer.MAX_VALUE) {
-            return MarketResult.error("vss_market.message.price_too_large");
-        }
-
-        int moneySpent = (int) total;
         long now = System.currentTimeMillis();
-        ViScriptShopServerUtil.removeMoney(buyer, moneySpent);
-        giveItem(buyer, listing.unitStack(), itemCount);
-        listing.setStock(listing.getStock() - count).setUpdatedTime(now);
-        shop.setBalance(shop.getBalance() + moneySpent).setUpdatedTime(now);
+        int moneySpent = (int) total;
+        if (listing.isPurchaseOrder()) {
+            if (ItemUtil.getItemForPlayerCount(buyer, listing.unitStack()) < itemCount) {
+                return MarketResult.error("vss_market.message.not_enough_item");
+            }
+            if (!canAddMoney(buyer, moneySpent)) {
+                return MarketResult.error("vss_market.message.money_too_large");
+            }
+            if ((long) listing.getCollectedStock() + count > Integer.MAX_VALUE) {
+                return MarketResult.error("vss_market.message.invalid_count");
+            }
+            ItemUtil.removeItemForPlayer(buyer, listing.unitStack(), itemCount);
+            ViScriptShopServerUtil.addMoney(buyer, moneySpent);
+            listing.setStock(listing.getStock() - count)
+                    .setCollectedStock(listing.getCollectedStock() + count)
+                    .setUpdatedTime(now);
+        } else {
+            if (ViScriptShopServerUtil.getMoney(buyer) < total) {
+                return MarketResult.error("vss_market.message.not_enough_money");
+            }
+            if ((long) shop.getBalance() + total > Integer.MAX_VALUE) {
+                return MarketResult.error("vss_market.message.price_too_large");
+            }
+            ViScriptShopServerUtil.removeMoney(buyer, moneySpent);
+            giveItem(buyer, listing.unitStack(), itemCount);
+            listing.setStock(listing.getStock() - count).setUpdatedTime(now);
+            shop.setBalance(shop.getBalance() + moneySpent).setUpdatedTime(now);
+        }
         shop.addPurchaseRecord(new MarketPurchaseRecord()
                 .setBuyerId(buyer.getUUID())
                 .setBuyerName(buyer.getGameProfile().getName())
                 .setItem(listing.unitStack())
                 .setQuantity(itemCount)
                 .setMoneySpent(moneySpent)
+                .setPurchaseOrder(listing.isPurchaseOrder())
                 .setPurchasedTime(now), MAX_PURCHASE_RECORDS);
         savedData.setDirty();
-        return MarketResult.success("vss_market.message.buy_success");
+        return MarketResult.success(listing.isPurchaseOrder()
+                ? "vss_market.message.sell_success"
+                : "vss_market.message.buy_success");
     }
 
     public static MarketResult restockListing(ServerPlayer owner, String listingId, int count) {
@@ -150,22 +183,35 @@ public class MarketServerUtil {
         if (listing == null || listing.getItem().isEmpty()) {
             return MarketResult.error("vss_market.message.listing_not_found");
         }
-        int itemCount = totalItems(listing.getBundleSize(), count);
-        if (itemCount <= 0) {
-            return MarketResult.error("vss_market.message.invalid_count");
-        }
-        if (ItemUtil.getItemForPlayerCount(owner, listing.unitStack()) < itemCount) {
-            return MarketResult.error("vss_market.message.not_enough_item");
-        }
         if ((long) listing.getStock() + count > Integer.MAX_VALUE) {
             return MarketResult.error("vss_market.message.invalid_count");
         }
 
-        ItemUtil.removeItemForPlayer(owner, listing.unitStack(), itemCount);
+        if (listing.isPurchaseOrder()) {
+            long total = totalPrice(listing.getPrice(), count);
+            if (total <= 0 || total > Integer.MAX_VALUE) {
+                return MarketResult.error("vss_market.message.price_too_large");
+            }
+            if (ViScriptShopServerUtil.getMoney(owner) < total) {
+                return MarketResult.error("vss_market.message.not_enough_money");
+            }
+            ViScriptShopServerUtil.removeMoney(owner, (int) total);
+        } else {
+            int itemCount = totalItems(listing.getBundleSize(), count);
+            if (itemCount <= 0) {
+                return MarketResult.error("vss_market.message.invalid_count");
+            }
+            if (ItemUtil.getItemForPlayerCount(owner, listing.unitStack()) < itemCount) {
+                return MarketResult.error("vss_market.message.not_enough_item");
+            }
+            ItemUtil.removeItemForPlayer(owner, listing.unitStack(), itemCount);
+        }
         listing.setStock(listing.getStock() + count).setUpdatedTime(System.currentTimeMillis());
         shop.setUpdatedTime(System.currentTimeMillis());
         savedData.setDirty();
-        return MarketResult.success("vss_market.message.restocked");
+        return MarketResult.success(listing.isPurchaseOrder()
+                ? "vss_market.message.purchase_restocked"
+                : "vss_market.message.restocked");
     }
 
     public static MarketResult updatePrice(ServerPlayer owner, String listingId, int price) {
@@ -180,6 +226,23 @@ public class MarketServerUtil {
         var listing = shop.findListing(listingId).orElse(null);
         if (listing == null) {
             return MarketResult.error("vss_market.message.listing_not_found");
+        }
+        if (listing.isPurchaseOrder()) {
+            long oldTotal = totalPrice(listing.getPrice(), listing.getStock());
+            long newTotal = totalPrice(price, listing.getStock());
+            long difference = newTotal - oldTotal;
+            if (difference > 0) {
+                if (ViScriptShopServerUtil.getMoney(owner) < difference || difference > Integer.MAX_VALUE) {
+                    return MarketResult.error("vss_market.message.not_enough_money");
+                }
+                ViScriptShopServerUtil.removeMoney(owner, (int) difference);
+            } else if (difference < 0) {
+                long refund = -difference;
+                if (refund > Integer.MAX_VALUE || !canAddMoney(owner, (int) refund)) {
+                    return MarketResult.error("vss_market.message.money_too_large");
+                }
+                ViScriptShopServerUtil.addMoney(owner, (int) refund);
+            }
         }
         listing.setPrice(price).setUpdatedTime(System.currentTimeMillis());
         shop.setUpdatedTime(System.currentTimeMillis());
@@ -197,7 +260,18 @@ public class MarketServerUtil {
         if (listing == null) {
             return MarketResult.error("vss_market.message.listing_not_found");
         }
-        if (listing.getStock() > 0) {
+        if (listing.isPurchaseOrder()) {
+            long refund = totalPrice(listing.getPrice(), listing.getStock());
+            if (refund > Integer.MAX_VALUE || !canAddMoney(owner, (int) refund)) {
+                return MarketResult.error("vss_market.message.money_too_large");
+            }
+            if (listing.getCollectedStock() > 0) {
+                giveItem(owner, listing.unitStack(), totalItems(listing.getBundleSize(), listing.getCollectedStock()));
+            }
+            if (refund > 0) {
+                ViScriptShopServerUtil.addMoney(owner, (int) refund);
+            }
+        } else if (listing.getStock() > 0) {
             giveItem(owner, listing.unitStack(), totalItems(listing.getBundleSize(), listing.getStock()));
         }
         shop.removeListing(listingId);
@@ -230,16 +304,30 @@ public class MarketServerUtil {
         if (shop == null) {
             return MarketResult.error("vss_market.message.shop_not_found");
         }
-        if (shop.getBalance() > 0 && !canAddMoney(owner, shop.getBalance())) {
+        long refund = shop.getBalance();
+        for (var listing : shop.getListings()) {
+            if (listing.isPurchaseOrder()) {
+                long listingRefund = totalPrice(listing.getPrice(), listing.getStock());
+                if (listingRefund < 0 || refund > Long.MAX_VALUE - listingRefund) {
+                    return MarketResult.error("vss_market.message.money_too_large");
+                }
+                refund += listingRefund;
+            }
+        }
+        if (refund > Integer.MAX_VALUE || !canAddMoney(owner, (int) refund)) {
             return MarketResult.error("vss_market.message.money_too_large");
         }
         for (var listing : shop.getListings()) {
-            if (listing.getStock() > 0 && !listing.getItem().isEmpty()) {
+            if (listing.isPurchaseOrder()) {
+                if (listing.getCollectedStock() > 0 && !listing.getItem().isEmpty()) {
+                    giveItem(owner, listing.unitStack(), totalItems(listing.getBundleSize(), listing.getCollectedStock()));
+                }
+            } else if (listing.getStock() > 0 && !listing.getItem().isEmpty()) {
                 giveItem(owner, listing.unitStack(), totalItems(listing.getBundleSize(), listing.getStock()));
             }
         }
-        if (shop.getBalance() > 0) {
-            ViScriptShopServerUtil.addMoney(owner, shop.getBalance());
+        if (refund > 0) {
+            ViScriptShopServerUtil.addMoney(owner, (int) refund);
         }
         savedData.removeShop(owner.getUUID());
         return MarketResult.success("vss_market.message.shop_deleted");
@@ -256,6 +344,10 @@ public class MarketServerUtil {
     private static int totalItems(int bundleSize, int stock) {
         long total = (long) bundleSize * stock;
         return total > 0 && total <= Integer.MAX_VALUE ? (int) total : -1;
+    }
+
+    private static long totalPrice(int price, int stock) {
+        return (long) price * stock;
     }
 
     private static boolean canAddMoney(ServerPlayer player, int amount) {
