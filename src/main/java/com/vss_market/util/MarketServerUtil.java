@@ -148,7 +148,7 @@ public class MarketServerUtil {
             if (ViScriptShopServerUtil.getMoney(buyer) < total) {
                 return MarketResult.error("vss_market.message.not_enough_money");
             }
-            if ((long) shop.getBalance() + total > Integer.MAX_VALUE) {
+            if (shop.getBalance() > Long.MAX_VALUE - total) {
                 return MarketResult.error("vss_market.message.price_too_large");
             }
             ViScriptShopServerUtil.removeMoney(buyer, moneySpent);
@@ -289,11 +289,12 @@ public class MarketServerUtil {
         if (shop.getBalance() <= 0) {
             return MarketResult.error("vss_market.message.no_balance");
         }
-        if (!canAddMoney(owner, shop.getBalance())) {
+        int amount = (int) Math.min(shop.getBalance(), remainingMoneyCapacity(owner));
+        if (amount <= 0) {
             return MarketResult.error("vss_market.message.money_too_large");
         }
-        ViScriptShopServerUtil.addMoney(owner, shop.getBalance());
-        shop.setBalance(0).setUpdatedTime(System.currentTimeMillis());
+        ViScriptShopServerUtil.addMoney(owner, amount);
+        shop.setBalance(shop.getBalance() - amount).setUpdatedTime(System.currentTimeMillis());
         savedData.setDirty();
         return MarketResult.success("vss_market.message.withdrawn");
     }
@@ -351,7 +352,11 @@ public class MarketServerUtil {
     }
 
     private static boolean canAddMoney(ServerPlayer player, int amount) {
-        return amount >= 0 && (long) ViScriptShopServerUtil.getMoney(player) + amount <= Integer.MAX_VALUE;
+        return amount >= 0 && amount <= remainingMoneyCapacity(player);
+    }
+
+    private static long remainingMoneyCapacity(ServerPlayer player) {
+        return (long) Integer.MAX_VALUE - ViScriptShopServerUtil.getMoney(player);
     }
 
     private static void giveItem(ServerPlayer player, ItemStack unitStack, int count) {

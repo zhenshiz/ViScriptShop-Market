@@ -35,7 +35,7 @@ public class PlayerShopData implements IPersistedSerializable {
     @Persisted
     private String name = "";
     @Persisted
-    private int balance;
+    private long balance;
     @Persisted
     private long createdTime;
     @Persisted
