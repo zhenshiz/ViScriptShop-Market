@@ -6,16 +6,14 @@ import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import com.mojang.serialization.Codec;
+import com.viscript_lib.util.item.ViScriptItemStack;
+import com.viscriptshop.util.MoneyUtil;
 import com.vss_market.VSSMarket;
 import lombok.Getter;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -44,45 +42,41 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
 
     public static MarketSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
         var data = new MarketSavedData();
-        var sanitizedTag = tag.copy();
-        var cleanup = removeInvalidItemEntries(sanitizedTag, provider);
-        data.deserializeNBT(provider, sanitizedTag);
+        data.deserializeNBT(provider, tag);
+        var cleanup = data.removeInvalidItemEntries();
         if (cleanup.hasChanges()) {
             data.setDirty();
-            VSSMarket.LOGGER.warn("市场数据中发现 {} 个失效商品和 {} 条失效交易记录，已自动清理，{} 枚收购预付款已转入对应店铺的待领取结算。", cleanup.listings(), cleanup.records(), cleanup.refund());
+            VSSMarket.LOGGER.warn("市场数据中发现 {} 个失效商品和 {} 条失效交易记录，已自动清理，{} 枚收购预付款已转入对应店铺的待领取结算。", cleanup.listings(), cleanup.records(), MoneyUtil.format(cleanup.refund()));
         }
         return data;
     }
 
-    private static CleanupResult removeInvalidItemEntries(CompoundTag tag, HolderLookup.Provider provider) {
+    private CleanupResult removeInvalidItemEntries() {
         int removedListings = 0;
         int removedRecords = 0;
-        long totalRefund = 0;
-        ListTag shopTags = tag.getList("shops", Tag.TAG_COMPOUND);
-        for (Tag shopEntry : shopTags) {
-            if (!(shopEntry instanceof CompoundTag shopTag)) {
-                continue;
-            }
-            long refund = 0;
-            ListTag listingTags = shopTag.getList("listings", Tag.TAG_COMPOUND);
-            for (int index = listingTags.size() - 1; index >= 0; index--) {
-                var listingTag = listingTags.getCompound(index);
-                if (!hasInvalidItem(provider, listingTag)) {
+        double totalRefund = 0;
+        for (var shop : shops) {
+            double refund = 0;
+            for (int index = shop.getListings().size() - 1; index >= 0; index--) {
+                var listing = shop.getListings().get(index);
+                if (!hasInvalidItem(listing.getItem(), listing.unitStack())) {
                     continue;
                 }
-                refund = addRefund(refund, pendingPurchaseRefund(listingTag));
-                listingTags.remove(index);
+                if (listing.isPurchaseOrder()) {
+                    refund = MoneyUtil.add(refund, MoneyUtil.multiply(listing.getPrice(), listing.getStock()));
+                }
+                shop.getListings().remove(index);
                 removedListings++;
             }
-            if (refund > 0) {
-                shopTag.putLong("balance", addRefund(shopTag.getLong("balance"), refund));
-                totalRefund = addRefund(totalRefund, refund);
+            if (MoneyUtil.isPositive(refund)) {
+                shop.setBalance(MoneyUtil.add(shop.getBalance(), refund));
+                totalRefund = MoneyUtil.add(totalRefund, refund);
             }
 
-            ListTag recordTags = shopTag.getList("purchaseRecords", Tag.TAG_COMPOUND);
-            for (int index = recordTags.size() - 1; index >= 0; index--) {
-                if (hasInvalidItem(provider, recordTags.getCompound(index))) {
-                    recordTags.remove(index);
+            for (int index = shop.getPurchaseRecords().size() - 1; index >= 0; index--) {
+                var record = shop.getPurchaseRecords().get(index);
+                if (hasInvalidItem(record.getItem(), record.displayStack())) {
+                    shop.getPurchaseRecords().remove(index);
                     removedRecords++;
                 }
             }
@@ -90,34 +84,11 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
         return new CleanupResult(removedListings, removedRecords, totalRefund);
     }
 
-    private static boolean hasInvalidItem(HolderLookup.Provider provider, CompoundTag entryTag) {
-        var itemTag = entryTag.getCompound("item");
-        var itemId = ResourceLocation.tryParse(itemTag.getString("id"));
-        if (itemId == null || !BuiltInRegistries.ITEM.containsKey(itemId)) {
-            return true;
-        }
-        try {
-            return ItemStack.parseOptional(provider, itemTag).isEmpty();
-        } catch (Exception ignored) {
-            return true;
-        }
+    private static boolean hasInvalidItem(ViScriptItemStack item, ItemStack stack) {
+        return item == null || item.isUnavailable() || stack.isEmpty();
     }
 
-    private static long pendingPurchaseRefund(CompoundTag listingTag) {
-        if (!listingTag.getBoolean("purchaseOrder")) {
-            return 0;
-        }
-        return (long) Math.max(0, listingTag.getInt("price")) * Math.max(0, listingTag.getInt("stock"));
-    }
-
-    private static long addRefund(long current, long refund) {
-        if (refund <= 0) {
-            return Math.max(0, current);
-        }
-        return current > Long.MAX_VALUE - refund ? Long.MAX_VALUE : Math.max(0, current) + refund;
-    }
-
-    private record CleanupResult(int listings, int records, long refund) {
+    private record CleanupResult(int listings, int records, double refund) {
         private boolean hasChanges() {
             return listings > 0 || records > 0;
         }

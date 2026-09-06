@@ -32,6 +32,7 @@ import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
 import com.viscript_lib.util.CountTextUtil;
 import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.gui.components.Message;
+import com.viscriptshop.util.MoneyUtil;
 import com.vss_market.data.MarketListing;
 import com.vss_market.data.MarketPurchaseRecord;
 import com.vss_market.data.MarketSavedData;
@@ -83,7 +84,7 @@ public class MarketClientScreen extends UIElement {
 
     private final MarketSavedData snapshot;
     private final UUID viewerId;
-    private final int money;
+    private final double money;
     private final String messageKey;
     private final Message.Type messageType;
     private View view = View.MARKET;
@@ -92,7 +93,7 @@ public class MarketClientScreen extends UIElement {
     private String searchWord = "";
     private boolean showPurchaseOrders;
     private ItemStack uploadStack = ItemStack.EMPTY;
-    private int uploadPrice = 1;
+    private double uploadPrice = 1;
     private int uploadBundleSize = 1;
     private int uploadStock = 1;
     private boolean uploadPurchaseOrder;
@@ -109,7 +110,7 @@ public class MarketClientScreen extends UIElement {
         this.messageKey = payload.getMessageKey();
         this.messageType = payload.parsedMessageType();
         this.uploadStack = payload.getUploadStack().isEmpty() ? ItemStack.EMPTY : payload.getUploadStack().copyWithCount(1);
-        this.uploadPrice = Math.max(1, payload.getUploadPrice());
+        this.uploadPrice = MoneyUtil.isPositive(payload.getUploadPrice()) ? payload.getUploadPrice() : 1;
         this.uploadBundleSize = Math.max(1, payload.getUploadBundleSize());
         this.uploadStock = Math.max(1, payload.getUploadStock());
         this.uploadPurchaseOrder = payload.isUploadPurchaseOrder();
@@ -223,7 +224,7 @@ public class MarketClientScreen extends UIElement {
             layout.justifyContent(AlignContent.CENTER);
         });
         var balance = new Label();
-        balance.setText(Component.translatable("vss_market.ui.balance", countText(money)));
+        balance.setText(Component.translatable("vss_market.ui.balance", moneyText(money)));
         balance.textStyle(style -> style
                 .textAlignHorizontal(Horizontal.LEFT)
                 .textAlignVertical(Vertical.CENTER)
@@ -421,7 +422,7 @@ public class MarketClientScreen extends UIElement {
                     layout.height(22);
                 }),
                 label("vss_market.ui.listing_count", countText(data.getListings().size())),
-                label("vss_market.ui.pending_balance", countText(data.getBalance()))
+                label("vss_market.ui.pending_balance", moneyText(data.getBalance()))
         );
 
         var actions = rowAuto().layout(layout -> {
@@ -509,9 +510,9 @@ public class MarketClientScreen extends UIElement {
 
         String priceKey = uploadPurchaseOrder ? "vss_market.ui.purchase_price" : "vss_market.ui.price";
         String stockKey = uploadPurchaseOrder ? "vss_market.ui.purchase_groups" : "vss_market.ui.stock_groups";
-        var priceField = textField(Integer.toString(uploadPrice), priceKey);
-        priceField.setNumbersOnlyInt(1, Integer.MAX_VALUE);
-        priceField.setTextResponder(value -> uploadPrice = parseInt(value, uploadPrice));
+        var priceField = textField(MoneyUtil.format(uploadPrice), priceKey);
+        priceField.setNumbersOnlyDouble(Double.MIN_VALUE, Double.MAX_VALUE);
+        priceField.setTextResponder(value -> uploadPrice = parseDouble(value, uploadPrice));
         var bundleField = textField(Integer.toString(uploadBundleSize), "vss_market.ui.bundle_size");
         bundleField.setNumbersOnlyInt(1, Integer.MAX_VALUE);
         bundleField.setTextResponder(value -> uploadBundleSize = parseInt(value, uploadBundleSize));
@@ -542,7 +543,7 @@ public class MarketClientScreen extends UIElement {
                 button(uploadPurchaseOrder ? "vss_market.ui.upload_purchase" : "vss_market.ui.upload", true, event ->
                         RPCPacketDistributor.rpcToServer(C2SPayload.UPLOAD_LISTING,
                                 uploadStack,
-                                parseInt(priceField.getText(), 1),
+                                parseDouble(priceField.getText(), 1),
                                 parseInt(bundleField.getText(), 1),
                                 parseInt(stockField.getText(), 1),
                                 uploadPurchaseOrder)).setId("upload_submit")
@@ -581,10 +582,10 @@ public class MarketClientScreen extends UIElement {
                     layout.flex(1);
                     layout.gapAll(3);
                 }).addChildren(
-                        literalLabel(listingData.getItem().getHoverName().getString()),
-                        literalLabel(itemId(listingData.getItem())),
+                        literalLabel(listingData.unitStack().getHoverName().getString()),
+                        literalLabel(itemId(listingData.unitStack())),
                         label("vss_market.ui.bundle_size_value", countText(listingData.getBundleSize())),
-                        label(purchaseOrder ? "vss_market.ui.purchase_price_value" : "vss_market.ui.price_value", countText(listingData.getPrice())),
+                        label(purchaseOrder ? "vss_market.ui.purchase_price_value" : "vss_market.ui.price_value", moneyText(listingData.getPrice())),
                         label(purchaseOrder ? "vss_market.ui.purchase_groups_value" : "vss_market.ui.stock_groups_value", countText(listingData.getStock())),
                         purchaseOrder
                                 ? label("vss_market.ui.collected_groups_value", countText(listingData.getCollectedStock()))
@@ -597,8 +598,8 @@ public class MarketClientScreen extends UIElement {
             var restockKey = purchaseOrder ? "vss_market.ui.purchase_groups" : "vss_market.ui.stock_groups";
             var restock = textField("1", restockKey);
             restock.setNumbersOnlyInt(1, Integer.MAX_VALUE);
-            var price = textField(Integer.toString(listingData.getPrice()), purchaseOrder ? "vss_market.ui.purchase_price" : "vss_market.ui.price");
-            price.setNumbersOnlyInt(1, Integer.MAX_VALUE);
+            var price = textField(MoneyUtil.format(listingData.getPrice()), purchaseOrder ? "vss_market.ui.purchase_price" : "vss_market.ui.price");
+            price.setNumbersOnlyDouble(Double.MIN_VALUE, Double.MAX_VALUE);
 
             var ownerInputs = rowAuto().layout(layout -> {
                 layout.widthPercent(100);
@@ -611,7 +612,7 @@ public class MarketClientScreen extends UIElement {
                     actionButton(purchaseOrder ? "vss_market.ui.add_purchase" : "vss_market.ui.restock", false, event ->
                             RPCPacketDistributor.rpcToServer(C2SPayload.RESTOCK_LISTING, listingData.getId(), parseInt(restock.getText(), 1), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.update_price", false, event ->
-                            RPCPacketDistributor.rpcToServer(C2SPayload.UPDATE_PRICE, listingData.getId(), parseInt(price.getText(), listingData.getPrice()), shopListScroll, manageListingScroll)),
+                            RPCPacketDistributor.rpcToServer(C2SPayload.UPDATE_PRICE, listingData.getId(), parseDouble(price.getText(), listingData.getPrice()), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.remove_listing", false, event ->
                             RPCPacketDistributor.rpcToServer(C2SPayload.REMOVE_LISTING, listingData.getId(), shopListScroll, manageListingScroll)),
                     actionButton("vss_market.ui.back", false, event -> {
@@ -629,7 +630,7 @@ public class MarketClientScreen extends UIElement {
             } else {
                 int maxBuyGroups = listingData.getStock();
                 int[] buyGroups = {1};
-                var totalPrice = label(purchaseOrder ? "vss_market.ui.total_earnings" : "vss_market.ui.total_price", countText(listingData.getPrice()));
+                var totalPrice = label(purchaseOrder ? "vss_market.ui.total_earnings" : "vss_market.ui.total_price", moneyText(listingData.getPrice()));
                 totalPrice.layout(layout -> layout.width(80).height(18));
 
                 var buyGroupsConfigurator = new NumberConfigurator(
@@ -638,7 +639,7 @@ public class MarketClientScreen extends UIElement {
                         value -> {
                             int count = value == null ? 1 : value.intValue();
                             buyGroups[0] = Math.max(1, Math.min(maxBuyGroups, count));
-                            totalPrice.setText(Component.translatable(purchaseOrder ? "vss_market.ui.total_earnings" : "vss_market.ui.total_price", countText((long) listingData.getPrice() * buyGroups[0])));
+                            totalPrice.setText(Component.translatable(purchaseOrder ? "vss_market.ui.total_earnings" : "vss_market.ui.total_price", moneyText(MoneyUtil.multiply(listingData.getPrice(), buyGroups[0]))));
                         },
                         1,
                         false
@@ -717,9 +718,9 @@ public class MarketClientScreen extends UIElement {
         cardButton.textStyle(style -> style.fontSize(7).textWrap(TextWrap.HIDE));
 
         card.addChildren(
-                cardLabel(Component.literal(listing.getItem().isEmpty() ? "-" : listing.getItem().getHoverName().getString()), 6.5f, 10),
+                cardLabel(Component.literal(listing.unitStack().isEmpty() ? "-" : listing.unitStack().getHoverName().getString()), 6.5f, 10),
                 displayItemSlot(listing.displayStack()).layout(layout -> layout.width(22).height(22)),
-                cardLabel(Component.translatable("vss_market.ui.price_value", countText(listing.getPrice())), 7.5f, 9),
+                cardLabel(Component.translatable("vss_market.ui.price_value", moneyText(listing.getPrice())), 7.5f, 9),
                 cardButton
         );
         return card;
@@ -781,7 +782,7 @@ public class MarketClientScreen extends UIElement {
             layout.alignItems(AlignItems.CENTER);
         }).addClass("preview_bg");
 
-        var itemName = record.getItem().isEmpty() ? "-" : record.getItem().getHoverName().getString();
+        var itemName = record.displayStack().isEmpty() ? "-" : record.displayStack().getHoverName().getString();
         var info = columnAuto().layout(layout -> {
             layout.flex(1);
             layout.heightPercent(100);
@@ -801,7 +802,7 @@ public class MarketClientScreen extends UIElement {
         });
         amount.addChildren(
                 recordLabel(Component.translatable("vss_market.ui.purchase_record_quantity", countText(record.getQuantity())), 8f, 11),
-                recordLabel(Component.translatable(record.isPurchaseOrder() ? "vss_market.ui.purchase_record_paid" : "vss_market.ui.purchase_record_spent", countText(record.getMoneySpent())), 7f, 10)
+                recordLabel(Component.translatable(record.isPurchaseOrder() ? "vss_market.ui.purchase_record_paid" : "vss_market.ui.purchase_record_spent", moneyText(record.getMoneySpent())), 7f, 10)
         );
 
         row.addChildren(
@@ -943,7 +944,7 @@ public class MarketClientScreen extends UIElement {
         var word = searchWord.trim();
         return containsSearchText(shop.getName(), word)
                 || containsSearchText(shop.getOwnerName(), word)
-                || SimpleItemStackFilter.matchItemSearch(listing.getItem(), word);
+                || SimpleItemStackFilter.matchItemSearch(listing.unitStack(), word);
     }
 
     private boolean matchesListingType(MarketListing listing) {
@@ -996,8 +997,20 @@ public class MarketClientScreen extends UIElement {
         }
     }
 
+    private static double parseDouble(String value, double fallback) {
+        try {
+            return Double.parseDouble(value);
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
     private static String countText(long value) {
         return CountTextUtil.formatCount(value);
+    }
+
+    private static String moneyText(double value) {
+        return MoneyUtil.formatCompact(value);
     }
 
     private static UIElement mainColumn() {
