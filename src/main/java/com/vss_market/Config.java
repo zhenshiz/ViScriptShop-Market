@@ -1,17 +1,17 @@
 package com.vss_market;
 
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 public class Config {
-    public static final ModConfigSpec CONFIG_SPEC;
-    public static final ModConfigSpec.DoubleValue MIN_PRICE;
-    public static final ModConfigSpec.DoubleValue MAX_PRICE;
-    public static final ModConfigSpec.IntValue MAX_STACKS_PER_OPERATION;
-    public static final ModConfigSpec.IntValue MAX_LISTINGS_PER_SHOP;
-    public static final ModConfigSpec.IntValue MAX_SHOP_NAME_LENGTH;
+    public static final ForgeConfigSpec CONFIG_SPEC;
+    public static final ForgeConfigSpec.DoubleValue MIN_PRICE;
+    public static final ForgeConfigSpec.DoubleValue MAX_PRICE;
+    public static final ForgeConfigSpec.IntValue MAX_STACKS_PER_OPERATION;
+    public static final ForgeConfigSpec.IntValue MAX_LISTINGS_PER_SHOP;
+    public static final ForgeConfigSpec.IntValue MAX_SHOP_NAME_LENGTH;
 
     static {
-        ModConfigSpec.Builder CONFIG_BUILDER = new ModConfigSpec.Builder();
+        ForgeConfigSpec.Builder CONFIG_BUILDER = new ForgeConfigSpec.Builder();
         CONFIG_BUILDER.push("market");
 
         // 商品允许设置的最低单价。

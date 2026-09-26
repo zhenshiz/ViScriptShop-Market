@@ -2,10 +2,8 @@ package com.vss_market.gui;
 
 import com.lowdragmc.lowdraglib2.configurator.annotation.ConfigNumber;
 import com.lowdragmc.lowdraglib2.configurator.ui.NumberConfigurator;
-import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.properties.Property;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.lowdragmc.lowdraglib2.gui.holder.ModularUIScreen;
+import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.ModularUI;
 import com.lowdragmc.lowdraglib2.gui.ui.UI;
 import com.lowdragmc.lowdraglib2.gui.ui.UIElement;
@@ -13,15 +11,8 @@ import com.lowdragmc.lowdraglib2.gui.ui.data.GridTemplate;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Horizontal;
 import com.lowdragmc.lowdraglib2.gui.ui.data.TextWrap;
 import com.lowdragmc.lowdraglib2.gui.ui.data.Vertical;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Button;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Dialog;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ItemSlot;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Label;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.ScrollerView;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.Selector;
-import com.lowdragmc.lowdraglib2.gui.ui.elements.TextField;
+import com.lowdragmc.lowdraglib2.gui.ui.elements.*;
 import com.lowdragmc.lowdraglib2.gui.ui.elements.inventory.InventorySlots;
-import com.lowdragmc.lowdraglib2.gui.texture.IGuiTexture;
 import com.lowdragmc.lowdraglib2.gui.ui.event.HoverTooltips;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener;
 import com.lowdragmc.lowdraglib2.gui.ui.event.UIEvents;
@@ -29,41 +20,31 @@ import com.lowdragmc.lowdraglib2.gui.ui.rendering.GUIContext;
 import com.lowdragmc.lowdraglib2.gui.ui.style.StylesheetManager;
 import com.lowdragmc.lowdraglib2.math.Size;
 import com.lowdragmc.lowdraglib2.networking.rpc.RPCPacketDistributor;
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.minecraft.MinecraftProfileTexture;
+import com.mojang.authlib.properties.Property;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.viscript_lib.util.CountTextUtil;
 import com.viscript_lib.util.item.SimpleItemStackFilter;
 import com.viscriptshop.gui.components.Message;
 import com.viscriptshop.util.MoneyUtil;
-import com.vss_market.data.MarketListing;
-import com.vss_market.data.MarketPurchaseRecord;
-import com.vss_market.data.MarketSavedData;
-import com.vss_market.data.PlayerShopData;
+import com.vss_market.data.*;
 import com.vss_market.network.c2s.C2SPayload;
-import com.vss_market.data.MarketScreenPayload;
-import dev.vfyjxf.taffy.style.AlignContent;
-import dev.vfyjxf.taffy.style.AlignItems;
-import dev.vfyjxf.taffy.style.FlexDirection;
-import dev.vfyjxf.taffy.style.GridAutoFlow;
-import dev.vfyjxf.taffy.style.TaffyDisplay;
-import dev.vfyjxf.taffy.style.TrackSizingFunction;
+import dev.vfyjxf.taffy.style.*;
 import net.minecraft.Util;
-import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.resources.PlayerSkin;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
+import net.minecraft.client.resources.SkinManager;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
+import net.minecraft.world.level.block.entity.SkullBlockEntity;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -402,7 +383,7 @@ public class MarketClientScreen extends UIElement {
     private UIElement createManagePanel() {
         var shop = ownShop();
         var panel = titledPanel("vss_market.ui.my_shop");
-        var body = panel.getChildren().getLast();
+        var body = panel.getChildren().get(panel.getChildren().size() - 1);
 
         if (shop.isEmpty()) {
             body.addChildren(
@@ -469,7 +450,7 @@ public class MarketClientScreen extends UIElement {
 
     private UIElement createUploadPanel() {
         var panel = titledPanel(uploadPurchaseOrder ? "vss_market.ui.upload_purchase_title" : "vss_market.ui.upload_title");
-        var body = panel.getChildren().getLast();
+        var body = panel.getChildren().get(panel.getChildren().size() - 1);
 
         var listingType = rowAuto().layout(layout -> {
             layout.widthPercent(100);
@@ -567,7 +548,7 @@ public class MarketClientScreen extends UIElement {
         boolean owner = shopData.getOwnerId().equals(viewerId);
         boolean purchaseOrder = listingData.isPurchaseOrder();
         var panel = titledPanel("vss_market.ui.detail_title");
-        var body = panel.getChildren().getLast();
+        var body = panel.getChildren().get(panel.getChildren().size() - 1);
 
         var detail = rowAuto().layout(layout -> {
             layout.widthPercent(100);
@@ -1202,7 +1183,7 @@ public class MarketClientScreen extends UIElement {
         return field;
     }
 
-    private static Button button(String key, boolean buying, com.lowdragmc.lowdraglib2.gui.ui.event.UIEventListener onClick) {
+    private static Button button(String key, boolean buying, UIEventListener onClick) {
         var button = buttonBase(buying);
         button.setText(key);
         button.setOnClick(onClick);
@@ -1239,8 +1220,8 @@ public class MarketClientScreen extends UIElement {
 
     private static class PlayerFaceElement extends UIElement {
         private static final String TEXTURES_PROPERTY = "textures";
-        private static final Map<UUID, Supplier<PlayerSkin>> REMOTE_SKIN_CACHE = new ConcurrentHashMap<>();
-        private final Supplier<PlayerSkin> skinGetter;
+        private static final Map<UUID, Supplier<ResourceLocation>> REMOTE_SKIN_CACHE = new ConcurrentHashMap<>();
+        private final Supplier<ResourceLocation> skinGetter;
 
         private PlayerFaceElement(UUID playerId, String playerName) {
             this(createProfile(playerId, playerName));
@@ -1261,15 +1242,13 @@ public class MarketClientScreen extends UIElement {
         @Override
         public void drawBackgroundAdditional(GUIContext guiContext) {
             RenderSystem.depthMask(false);
-            guiContext.graphics.drawManaged(() -> {
-                PlayerFaceRenderer.draw(
-                        guiContext.graphics,
-                        skinGetter.get(),
-                        (int) getPositionX(),
-                        (int) getPositionY(),
-                        (int) Math.min(getSizeWidth(), getSizeHeight())
-                );
-            });
+            guiContext.graphics.drawManaged(() -> PlayerFaceRenderer.draw(
+                    guiContext.graphics,
+                    skinGetter.get(),
+                    (int) getPositionX(),
+                    (int) getPositionY(),
+                    (int) Math.min(getSizeWidth(), getSizeHeight())
+            ));
             RenderSystem.depthMask(true);
         }
 
@@ -1292,41 +1271,37 @@ public class MarketClientScreen extends UIElement {
             return new Property(TEXTURES_PROPERTY, shop.getOwnerTexture(), shop.getOwnerTextureSignature());
         }
 
-        private static Supplier<PlayerSkin> createSkinGetter(GameProfile profile) {
+        private static Supplier<ResourceLocation> createSkinGetter(GameProfile profile) {
             var minecraft = Minecraft.getInstance();
             var playerId = profile.getId();
             var connection = minecraft.getConnection();
             if (connection != null && playerId != null) {
                 var playerInfo = connection.getPlayerInfo(playerId);
                 if (playerInfo != null) {
-                    return playerInfo::getSkin;
+                    return playerInfo::getSkinLocation;
                 }
             }
             if (profile.getProperties().containsKey(TEXTURES_PROPERTY) || playerId == null || Util.NIL_UUID.equals(playerId)) {
-                return minecraft.getSkinManager().lookupInsecure(profile);
+                return () -> minecraft.getSkinManager().getInsecureSkinLocation(profile);
             }
             return REMOTE_SKIN_CACHE.computeIfAbsent(playerId, ignored -> new RemoteSkinSupplier(profile));
         }
 
-        private static class RemoteSkinSupplier implements Supplier<PlayerSkin> {
-            private volatile Supplier<PlayerSkin> skinGetter;
+        private static class RemoteSkinSupplier implements Supplier<ResourceLocation> {
+            private volatile Supplier<ResourceLocation> skinGetter;
 
             private RemoteSkinSupplier(GameProfile fallbackProfile) {
                 var minecraft = Minecraft.getInstance();
-                var sessionService = minecraft.getMinecraftSessionService();
-                this.skinGetter = minecraft.getSkinManager().lookupInsecure(fallbackProfile);
-                CompletableFuture
-                        .supplyAsync(() -> sessionService.fetchProfile(fallbackProfile.getId(), true), Util.nonCriticalIoPool())
-                        .thenAccept(result -> {
-                            if (result != null && result.profile() != null) {
-                                skinGetter = Minecraft.getInstance().getSkinManager().lookupInsecure(result.profile());
-                            }
-                        })
-                        .exceptionally(throwable -> null);
+                this.skinGetter = () -> minecraft.getSkinManager().getInsecureSkinLocation(fallbackProfile);
+                SkullBlockEntity.updateGameprofile(fallbackProfile, gameProfile -> {
+                    SkinManager manager = minecraft.getSkinManager();
+                    var map = manager.getInsecureSkinInformation(gameProfile);
+                    if (map.containsKey(MinecraftProfileTexture.Type.SKIN)) skinGetter = () -> manager.registerTexture(map.get(MinecraftProfileTexture.Type.SKIN), MinecraftProfileTexture.Type.SKIN);
+                });
             }
 
             @Override
-            public PlayerSkin get() {
+            public ResourceLocation get() {
                 return skinGetter.get();
             }
         }

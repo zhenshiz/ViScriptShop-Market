@@ -4,16 +4,12 @@ import com.mojang.logging.LogUtils;
 import com.vss_market.data.MarketSerializers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.fml.loading.FMLLoader;
-import net.neoforged.neoforge.client.gui.ConfigurationScreen;
-import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.loading.FMLEnvironment;
+import net.minecraftforge.fml.loading.FMLLoader;
 import org.slf4j.Logger;
 
 @Mod(VSSMarket.MOD_ID)
@@ -21,16 +17,13 @@ public class VSSMarket {
     public static final String MOD_ID = "vss_market";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public VSSMarket(IEventBus modEventBus, ModContainer modContainer, Dist dist) {
+    public VSSMarket() {
         MarketSerializers.register();
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
-        if (dist == Dist.CLIENT) {
-            modContainer.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-        }
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, Config.CONFIG_SPEC, "%s_config.toml".formatted(MOD_ID));
     }
 
     public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return new ResourceLocation(MOD_ID, path);
     }
 
     public static String formattedMod(String path) {
@@ -42,7 +35,7 @@ public class VSSMarket {
     }
 
     public static boolean isClient() {
-        return FMLEnvironment.dist == Dist.CLIENT;
+        return FMLEnvironment.dist.isClient();
     }
 
     public static boolean isDevEnv() {

@@ -8,8 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,7 +21,7 @@ import java.util.UUID;
 @Accessors(chain = true)
 public class PlayerShopData implements IPersistedSerializable {
     public static final Codec<PlayerShopData> CODEC = PersistedParser.createCodec(PlayerShopData::new);
-    public static final StreamCodec<ByteBuf, PlayerShopData> STREAM_CODEC = PersistedParser.createStreamCodec(PlayerShopData::new);
+    public static final StreamCodec<PlayerShopData> STREAM_CODEC = PersistedParser.createStreamCodec(PlayerShopData::new);
 
     @Persisted
     private UUID ownerId = new UUID(0L, 0L);

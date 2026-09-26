@@ -1,13 +1,12 @@
 package com.vss_market.network;
 
-import com.vss_market.gui.MarketClientScreen;
 import com.vss_market.data.MarketScreenPayload;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.fml.loading.FMLEnvironment;
+import com.vss_market.gui.MarketClientScreen;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 
 public class MarketClientBridge {
     public static void openMarket(MarketScreenPayload payload) {
-        if (FMLEnvironment.dist == Dist.CLIENT) {
+        if (FMLEnvironment.dist.isClient()) {
             MarketClientScreen.open(payload);
         }
     }

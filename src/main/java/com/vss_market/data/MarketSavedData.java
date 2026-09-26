@@ -1,5 +1,6 @@
 package com.vss_market.data;
 
+import com.lowdragmc.lowdraglib2.Platform;
 import com.lowdragmc.lowdraglib2.syncdata.IPersistedSerializable;
 import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
@@ -10,39 +11,33 @@ import com.viscript_lib.util.item.ViScriptItemStack;
 import com.viscriptshop.util.MoneyUtil;
 import com.vss_market.VSSMarket;
 import lombok.Getter;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.nikdo53.neobackports.io.StreamCodec;
+import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class MarketSavedData extends SavedData implements IPersistedSerializable {
     private static final String DATA_NAME = VSSMarket.MOD_ID + "_market";
     private static final String TEXTURES_PROPERTY = "textures";
-    private static final Factory<MarketSavedData> FACTORY = new Factory<>(MarketSavedData::new, MarketSavedData::load);
 
     public static final Codec<MarketSavedData> CODEC = PersistedParser.createCodec(MarketSavedData::new);
-    public static final StreamCodec<ByteBuf, MarketSavedData> STREAM_CODEC = PersistedParser.createStreamCodec(MarketSavedData::new);
+    public static final StreamCodec<MarketSavedData> STREAM_CODEC = PersistedParser.createStreamCodec(MarketSavedData::new);
 
     @Getter
     @Persisted
     private final List<PlayerShopData> shops = new ArrayList<>();
 
     public static MarketSavedData get(ServerLevel level) {
-        return level.getDataStorage().computeIfAbsent(FACTORY, DATA_NAME);
+        return level.getDataStorage().computeIfAbsent(MarketSavedData::load, MarketSavedData::new, DATA_NAME);
     }
 
-    public static MarketSavedData load(CompoundTag tag, HolderLookup.Provider provider) {
+    public static MarketSavedData load(CompoundTag tag) {
         var data = new MarketSavedData();
-        data.deserializeNBT(provider, tag);
+        data.deserializeNBT(Platform.getFrozenRegistry(), tag);
         var cleanup = data.removeInvalidItemEntries();
         if (cleanup.hasChanges()) {
             data.setDirty();
@@ -95,8 +90,8 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag, HolderLookup.Provider provider) {
-        tag.merge(serializeNBT(provider));
+    public @NotNull CompoundTag save(CompoundTag tag) {
+        tag.merge(serializeNBT(Platform.getFrozenRegistry()));
         return tag;
     }
 
@@ -176,9 +171,9 @@ public class MarketSavedData extends SavedData implements IPersistedSerializable
         }
         Property texture = ownerProfile.getProperties().get(TEXTURES_PROPERTY).stream().findFirst().orElse(null);
         if (texture != null) {
-            var signature = texture.signature() == null ? "" : texture.signature();
-            if (!texture.value().equals(shop.getOwnerTexture()) || !signature.equals(shop.getOwnerTextureSignature())) {
-                shop.setOwnerTexture(texture.value());
+            var signature = texture.getSignature() == null ? "" : texture.getSignature();
+            if (!texture.getValue().equals(shop.getOwnerTexture()) || !signature.equals(shop.getOwnerTextureSignature())) {
+                shop.setOwnerTexture(texture.getValue());
                 shop.setOwnerTextureSignature(signature);
                 changed = true;
             }

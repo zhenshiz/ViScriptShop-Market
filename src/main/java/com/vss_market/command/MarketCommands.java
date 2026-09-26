@@ -1,11 +1,12 @@
 package com.vss_market.command;
 
 import com.lowdragmc.lowdraglib2.registry.annotation.LDLRegister;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.viscript_lib.register.ICommand;
 import com.vss_market.VSSMarket;
 import com.vss_market.data.MarketSavedData;
+import com.vss_market.data.PlayerShopData;
 import com.vss_market.network.s2c.S2CPayload;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -72,7 +73,7 @@ public class MarketCommands implements ICommand {
     ) {
         return SharedSuggestionProvider.suggest(
                 MarketSavedData.get(source.getServer().overworld()).getShops().stream()
-                        .map(shop -> shop.getOwnerName())
+                        .map(PlayerShopData::getOwnerName)
                         .filter(name -> !name.isBlank()),
                 builder
         );

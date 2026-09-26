@@ -9,9 +9,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.UUID;
 
@@ -21,7 +20,7 @@ import java.util.UUID;
 @Accessors(chain = true)
 public class MarketListing implements IPersistedSerializable {
     public static final Codec<MarketListing> CODEC = PersistedParser.createCodec(MarketListing::new);
-    public static final StreamCodec<ByteBuf, MarketListing> STREAM_CODEC = PersistedParser.createStreamCodec(MarketListing::new);
+    public static final StreamCodec<MarketListing> STREAM_CODEC = PersistedParser.createStreamCodec(MarketListing::new);
 
     @Persisted
     private String id = UUID.randomUUID().toString();

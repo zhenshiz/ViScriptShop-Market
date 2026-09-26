@@ -5,13 +5,12 @@ import com.lowdragmc.lowdraglib2.syncdata.annotation.Persisted;
 import com.lowdragmc.lowdraglib2.utils.PersistedParser;
 import com.mojang.serialization.Codec;
 import com.viscript_lib.util.item.ViScriptItemStack;
-import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.ItemStack;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 import java.util.UUID;
 
@@ -21,7 +20,7 @@ import java.util.UUID;
 @Accessors(chain = true)
 public class MarketPurchaseRecord implements IPersistedSerializable {
     public static final Codec<MarketPurchaseRecord> CODEC = PersistedParser.createCodec(MarketPurchaseRecord::new);
-    public static final StreamCodec<ByteBuf, MarketPurchaseRecord> STREAM_CODEC = PersistedParser.createStreamCodec(MarketPurchaseRecord::new);
+    public static final StreamCodec<MarketPurchaseRecord> STREAM_CODEC = PersistedParser.createStreamCodec(MarketPurchaseRecord::new);
 
     @Persisted
     private UUID buyerId = new UUID(0L, 0L);

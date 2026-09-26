@@ -2,8 +2,9 @@ package com.vss_market.data;
 
 import com.lowdragmc.lowdraglib2.syncdata.AccessorRegistries;
 import com.lowdragmc.lowdraglib2.syncdata.accessor.direct.CustomDirectAccessor;
-import io.netty.buffer.ByteBuf;
+import com.mojang.serialization.Codec;
 import lombok.experimental.UtilityClass;
+import net.nikdo53.neobackports.io.StreamCodec;
 
 @UtilityClass
 public class MarketSerializers {
@@ -21,8 +22,7 @@ public class MarketSerializers {
         registered = true;
     }
 
-    private <T> void register(Class<T> type, com.mojang.serialization.Codec<T> codec,
-                              net.minecraft.network.codec.StreamCodec<? super ByteBuf, T> streamCodec) {
+    private <T> void register(Class<T> type, Codec<T> codec, StreamCodec<T> streamCodec) {
         AccessorRegistries.registerAccessor(CustomDirectAccessor.builder(type)
                 .codec(codec)
                 .streamCodec(streamCodec)
